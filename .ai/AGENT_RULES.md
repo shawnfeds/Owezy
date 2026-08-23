@@ -1,63 +1,56 @@
-# Owezy — AI Agent Operational Rules & Governance
+# Owezy — Agent Rules
 
-These rules are permanent operational constraints for any AI agent working on the Owezy project. Every AI agent MUST strictly adhere to these rules.
+## Context Discipline
 
----
+Before beginning any task, read:
+1. `.ai/AGENT_RULES.md`
+2. `.ai/PROJECT_STATUS.md`
+3. `.ai/CURRENT_TASK.md`
+4. `.ai/HANDOFF.md` — only when directly relevant
 
-## 1. Context & Token Discipline
-- **Do NOT read the entire repository repeatedly.**
-- Inspect ONLY the files directly relevant to the current active milestone (`.ai/PROJECT_STATUS.md`, `.ai/CURRENT_TASK.md`, relevant specs, ADRs, target source files, and test files).
-- Do not reload unchanged files or perform broad repository scans for narrowly scoped tasks.
+Read only source files directly relevant to the current milestone.
+Do NOT scan the entire repository unless the task genuinely requires it or a contradiction is discovered.
+Do NOT reread completed milestone documentation.
+Use Git history when historical information is required.
+Do not duplicate information unnecessarily across AI context files.
 
----
+Completed work is represented by Git history and the compact project status/handoff.
+Future agents should not reread completed work unless the current task depends on a specific historical decision.
 
-## 2. Strict Scope Control Firewall
-- **v1 Scope is STRICTLY Controlled.**
-- **DO NOT IMPLEMENT** any feature outside the agreed v1 specification.
-- Specifically forbidden features:
-  - Notifications (push, email, SMS alerts except basic OTP)
-  - Chat or messaging
-  - Social features or friend lists
-  - Analytics dashboards, charts, or reports
-  - Expense categorization or budgeting
-  - Recurring bills or scheduling
-  - Payment processing, bank gateways, escrow, or automatic transaction verification
-  - Multiple currencies (INR `₹` is the standard v1 currency)
-  - Subscriptions or paid tiers
-  - Admin dashboards
-  - Recommendation systems or AI assistants
-  - Redis, Kubernetes, Event Buses, Microservices, or external cloud queues
-  - Native mobile applications
-- If a potentially useful out-of-scope feature is identified, record it in `.ai/PROJECT_STATUS.md` under Out-of-Scope Observations. **DO NOT IMPLEMENT IT.**
+## Scope Discipline
 
----
+- Implement only the explicitly requested milestone.
+- Do not add speculative or "helpful" features outside the milestone.
+- Do not redesign existing architecture unless the milestone requires it.
+- If a requirement is ambiguous, inspect existing decisions first.
+- If there is a genuine contradiction, stop and report it.
 
-## 3. Implementation Loop & Workflow
-Every milestone MUST follow this exact sequence:
-```text
-READ -> UNDERSTAND -> PLAN -> IMPLEMENT -> TEST -> VERIFY -> UPDATE STATUS -> STOP
+## Token Discipline
+
+- Prefer targeted file inspection over broad scans.
+- Prefer concise summaries.
+- Do not generate large reports unless requested.
+- At milestone completion, provide a compact milestone receipt.
+- Verification reports should normally be compact. Provide detailed evidence only when a failure, ambiguity, security concern, or architectural question requires investigation.
+
+## Architectural Rules
+
+- Modular monolith: `Domain` ← `Application` ← `Infrastructure` ← `API`.
+- `Domain` has zero external dependencies.
+- `Application` depends only on `Domain`.
+- `Infrastructure` depends on `Application` and `Domain`; never on `API`.
+- Database: SQL Server + EF Core only. No PostgreSQL, Redis, or NoSQL.
+- Monetary values: always `decimal`. `float`/`double` are prohibited.
+- Rounding: Largest Remainder Method with deterministic tie-breaking.
+
+## Forbidden v1 Features
+
+Do not implement unless explicitly instructed: JWT, authentication API endpoints, SMS production, refresh tokens, authorization middleware, background cleanup, Redis, participant/bill/payment functionality, analytics, chat, social features, admin dashboards, native mobile apps, subscriptions, or paid tiers.
+
+## Workflow
+
 ```
-- **STOP Condition**: Once a milestone is completed and verified, STOP and present the completion report. Do NOT proceed to the next milestone automatically.
+READ → UNDERSTAND → PLAN → IMPLEMENT → TEST → VERIFY → UPDATE STATUS → STOP
+```
 
----
-
-## 4. Architectural Rules
-- **Modular Monolith**: Single .NET 10 Solution (`Owezy.slnx`).
-- Layer boundaries: `Owezy.Api` -> `Owezy.Application` -> `Owezy.Domain` <- `Owezy.Infrastructure`.
-- Directional dependency enforcement (`Domain` has zero dependencies; `Application` depends only on `Domain`; `Infrastructure` depends on `Application` & `Domain`).
-- Module organization inside `Owezy.Application`: `Auth/`, `Billing/`, `OCR/`, `Splitting/`, `Payments/`, `Sharing/`.
-- **Database**: Microsoft SQL Server with Entity Framework Core. No PostgreSQL, no NoSQL, no Redis.
-- **Monetary Precision**: Always use `decimal`. Floating-point types (`float`, `double`) are strictly prohibited for financial calculations.
-- **Rounding Algorithm**: **Largest Remainder Method** with deterministic tie-breaking.
-- **Splitter vs Participant Privacy & Security**:
-  - Splitters authenticate via Phone + OTP -> JWT and have access to full bill state and history.
-  - Participants access via secure relationship link `/split/{billToken}/{participantToken}` without login.
-  - Participant permissions: **"Scoped read access + limited payment-status mutation"** (reading own share/items/total/splitter UPI VPA + mutating only own payment status to paid).
-  - The API MUST enforce server-side authorization so participants see ONLY their own split.
-
----
-
-## 5. Testing & Verification Rules
-- Code edits MUST be accompanied by corresponding automated unit/integration tests.
-- Never declare a milestone complete until all tests pass cleanly.
-- Use `Owezy.ArchitectureTests` to strictly enforce layer boundary rules.
+STOP after milestone completion. Do NOT proceed to the next milestone automatically.

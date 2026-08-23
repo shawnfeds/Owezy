@@ -1,19 +1,21 @@
-# Current Active Task — Phase 1 / Milestone 1.3: OTP Persistence Foundation
-
-## Objective
-Establish SQL Server EF Core persistence for OTP challenges.
+# Current Task — Phase 1 / Milestone 1.4
 
 ## Status
-**COMPLETED**. Next milestone: Phase 1 / Milestone 1.4 — Authentication Flow Orchestration.
 
-## What was implemented
-- [x] `OwezyDbContext` with `DbSet<OtpChallengeRow>` (Infrastructure only)
-- [x] `OtpChallengeRow` — EF persistence model (internal to Infrastructure)
-- [x] `OtpChallengeConfiguration` — Fluent API mapping with all columns, constraints, index, and rowversion
-- [x] `OwezyDbContextFactory` — Design-time factory for `dotnet ef migrations add`
-- [x] `SqlOtpChallengeRepository` — `IOtpChallengeRepository` implementation
-- [x] `InfrastructureAssemblyMarker` — Assembly marker (replaced deleted `Class1.cs`)
-- [x] Migration: `InitialOtpChallengeSchema` created and verified
-- [x] SQL Server integration tests (8 tests — all passing against LocalDB)
-- [x] Architecture tests updated and passing (4/4)
-- [x] Unit tests unchanged and passing (49/49)
+NOT STARTED
+
+## Phase
+
+Phase 1 — Authentication
+
+## Objective
+
+Define and implement the next authentication workflow milestone after OTP persistence.
+
+## Completed Prerequisites
+
+Milestones 1.1, 1.2, and 1.3 are complete.
+
+## Rule
+
+Do not begin implementation until an explicit Milestone 1.4 prompt is provided.
