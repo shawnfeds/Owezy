@@ -13,7 +13,7 @@ public class LayerDependencyTests
     [Fact]
     public void Domain_MustNot_DependOn_Application_Infrastructure_Or_Api()
     {
-        var result = Types.InAssembly(typeof(Owezy.Domain.Class1).Assembly)
+        var result = Types.InAssembly(typeof(Owezy.Domain.Auth.User).Assembly)
             .ShouldNot()
             .HaveDependencyOnAny(ApplicationNamespace, InfrastructureNamespace, ApiNamespace)
             .GetResult();
@@ -24,7 +24,7 @@ public class LayerDependencyTests
     [Fact]
     public void Application_MustNot_DependOn_Infrastructure_Or_Api()
     {
-        var result = Types.InAssembly(typeof(Owezy.Application.Class1).Assembly)
+        var result = Types.InAssembly(typeof(Owezy.Application.Auth.IUserRepository).Assembly)
             .ShouldNot()
             .HaveDependencyOnAny(InfrastructureNamespace, ApiNamespace)
             .GetResult();

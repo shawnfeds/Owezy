@@ -1,16 +1,13 @@
 # Owezy Session Handoff Document
 
 ## Current State Summary
-- Milestone 0.2 (Foundation Refinement & Baseline Locking) is **COMPLETED**.
-- All documentation, ADRs, specifications, and AI governance files standardized on **.NET 10** and **`Owezy.slnx`**.
-- Directional architecture tests (`Domain` $\leftarrow$ `Application` $\leftarrow$ `Infrastructure` $\leftarrow$ `Api`) passing cleanly in `Owezy.ArchitectureTests`.
-- Participant access security terminology standardized: **"Scoped read access + limited payment-status mutation"**.
-- Phase Plan updated: Phases 1–6 include feature-specific minimum UI; Phase 7 redefined as "UI Consolidation, PWA & UX Hardening".
-- Git repository initialized and baseline committed (`chore: establish owezy engineering baseline`).
-- **Zero feature code has been implemented.**
+- Phase 1 / Milestone 1.1 (Authentication Domain Foundation) is **COMPLETED**.
+- Implemented `PhoneNumber` value object (canonical E.164 normalization, formatting stripping, validation), `User` domain aggregate, `UserId`, `AccountStatus`, `IPhoneNumberNormalizer`, and `IUserRepository` contract.
+- Unit tests (23 tests) and directional architecture tests (4 tests) passing cleanly.
+- **Zero infrastructure or feature code implemented** (No OTP, SMS, JWT, API, UI, or DB persistence).
 
 ## Next Milestone
-- Recommended Next Milestone: **Phase 1 — Splitter Authentication** (Phone + OTP + JWT backend + minimum auth UI).
+- Recommended Next Milestone: **Phase 1 / Milestone 1.2 — OTP & Authentication Application Logic** (or OTP Service abstractions).
 
 > [!WARNING]
-> **HARD STOP**: Do NOT start Phase 1 until explicitly instructed by the user.
+> **HARD STOP**: Do NOT start Milestone 1.2 until explicitly instructed by the user.

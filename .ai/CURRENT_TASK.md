@@ -1,19 +1,18 @@
-# Current Active Task — Milestone 0.2: Foundation Refinement & Baseline Locking
+# Current Active Task — Phase 1 / Milestone 1.1: Authentication Domain Foundation
 
 ## Objective
-Lock and correct the engineering foundation before feature development. Refine technology stack references (.NET 10, `Owezy.slnx`), strengthen directional architecture tests, update participant security terminology, clarify OCR/OTP abstractions, and correct phase plan definitions.
+Establish minimal domain and application contracts for Splitter user identity and canonical phone number normalization.
 
-## Active Scope
-- [x] Standardize .NET version (.NET 10) and solution file (`Owezy.slnx`) across docs
-- [x] Update Phase 0 definition to accurately reflect current repository state
-- [x] Strengthen directional architecture tests (`Domain` $\leftarrow$ `Application` $\leftarrow$ `Infrastructure` $\leftarrow$ `Api`)
-- [x] Update participant security terminology to "Scoped read access + limited payment-status mutation"
-- [x] Clarify `billToken` + `participantToken` relationship scoping
-- [x] Remove premature SMS provider commitments (abstract `DevelopmentSmsProvider` + `ProductionSmsProvider`)
-- [x] Update OCR resilience requirements (remove Polly dependency, specify architecture requirements)
-- [x] Correct phase plan frontend strategy (feature-specific minimum UI in Phases 1–6; Phase 7 redefined to "UI Consolidation, PWA & UX Hardening")
-- [x] Verify solution builds cleanly and architecture tests pass
-- [x] Git check & commit (`chore: establish owezy engineering baseline`)
+## Active Scope & Tasks
+- [x] Create `UserId` strongly-typed ID record struct
+- [x] Create `AccountStatus` domain enum
+- [x] Create `PhoneNumber` value object with E.164 normalization & validation
+- [x] Create `User` aggregate entity for Splitter
+- [x] Create `IPhoneNumberNormalizer` contract & implementation
+- [x] Create `IUserRepository` contract
+- [x] Create unit test suite for `PhoneNumber` and `User` (23 unit tests)
+- [x] Verify solution compilation and directional architecture tests
+- [x] Update status & handoff documentation
 
-## Non-Goals
-- ALL application feature implementation (No Auth, OTP, Bills, OCR, Splitting, Links, Payments, UI components).
+## Status
+**Completed**. Ready for review. HARD STOP condition reached.
