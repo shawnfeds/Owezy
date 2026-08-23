@@ -1,17 +1,20 @@
-# Current Active Task — Phase 1 / Milestone 1.1: Authentication Domain Foundation
+# Current Active Task — Phase 1 / Milestone 1.2: OTP Domain & Service Contracts
 
 ## Objective
-Establish minimal domain and application contracts for Splitter user identity and canonical phone number normalization.
+Establish the OTP domain aggregate, 6-digit leading-zero format, SHA-256 hash protection, 5-minute validity window, 5 attempt limit, `IOtpService`, `ISmsProvider`, and test suite.
 
 ## Active Scope & Tasks
-- [x] Create `UserId` strongly-typed ID record struct
-- [x] Create `AccountStatus` domain enum
-- [x] Create `PhoneNumber` value object with E.164 normalization & validation
-- [x] Create `User` aggregate entity for Splitter
-- [x] Create `IPhoneNumberNormalizer` contract & implementation
-- [x] Create `IUserRepository` contract
-- [x] Create unit test suite for `PhoneNumber` and `User` (23 unit tests)
-- [x] Verify solution compilation and directional architecture tests
+- [x] Create `OtpChallengeId` strongly-typed ID record struct
+- [x] Create `OtpState` and `OtpVerificationResult` enums
+- [x] Create `OtpChallenge` domain aggregate (5-minute expiry, 5 attempt limit, SHA-256 protection, state machine)
+- [x] Create `IDateTimeProvider` & `DateTimeProvider` time abstraction
+- [x] Create `IOtpGenerator` & `SecureOtpGenerator` (6-digit numeric with leading zeroes)
+- [x] Create `IOtpHasher` & `Sha256OtpHasher` (SHA-256 hex string hashing)
+- [x] Create `ISmsProvider` & `DevelopmentSmsProvider` (in-memory dev provider)
+- [x] Create `IOtpChallengeRepository` application repository contract
+- [x] Create `IOtpService` & `OtpService` application orchestrator
+- [x] Create unit tests (`OtpGeneratorTests`, `OtpHasherTests`, `OtpChallengeTests`, `OtpServiceTests`)
+- [x] Verify solution compilation (47 passing tests) and directional architecture rules
 - [x] Update status & handoff documentation
 
 ## Status

@@ -6,7 +6,7 @@
 - **Architecture**: Modular Monolith (.NET 10 C#, SQL Server, EF Core, Vanilla/Vite Client)
 - **Solution File**: `Owezy.slnx`
 - **Current Phase**: Phase 1 — Splitter Authentication
-- **Current Milestone**: Milestone 1.1 — Authentication Domain Foundation (Completed)
+- **Current Milestone**: Milestone 1.2 — OTP Domain & Service Contracts (Completed)
 
 ---
 
@@ -15,7 +15,7 @@
 | Phase | Description | Status | Completion Gate |
 |-------|-------------|--------|-----------------|
 | **Phase 0** | Foundation Scaffolding & Governance | **COMPLETED** | Solution `Owezy.slnx` scaffolded, .ai rules, ADRs, specs & directional architecture tests passing |
-| **Phase 1** | Splitter Authentication | **IN PROGRESS (1.1 COMPLETED)** | Milestone 1.1 domain foundation verified; OTP/JWT & API endpoints pending |
+| **Phase 1** | Splitter Authentication | **IN PROGRESS (1.1 & 1.2 COMPLETED)** | Milestones 1.1 & 1.2 verified; OTP persistence & JWT authentication flow pending |
 | **Phase 2** | Bill Management Core | Pending | Manual bill creation, items & participant management backend + minimum bill UI |
 | **Phase 3** | Advisory OCR Pipeline | Pending | OCR abstraction, hashing, caching & resilience backend + OCR review UI |
 | **Phase 4** | Splitting Engine | Pending | Equal split claim logic & Largest Remainder Method backend + minimum claim/split UI |
