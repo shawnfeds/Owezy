@@ -1,7 +1,7 @@
 # Owezy OTP Authentication Specification
 
 ## 1. Objective
-Provide secure phone-based Splitter authentication with rate limiting, attempt tracking, secure hashing, and zero cost during local development and testing.
+Provide secure phone-based Splitter authentication with rate limiting, attempt tracking, keyed HMAC protection, and zero cost during local development and testing.
 
 ## 2. Phone Normalization
 All incoming phone numbers must be sanitized and normalized to E.164 format (e.g. `+919876543210`) prior to processing.
@@ -9,12 +9,12 @@ All incoming phone numbers must be sanitized and normalized to E.164 format (e.g
 ## 3. OTP Rules & Constraints
 - **Length**: 6 numeric digits (e.g., `584920`).
 - **Validity Window**: 5 minutes (300 seconds).
-- **Maximum Attempt Limit**: 3 invalid verification attempts per OTP session. Exceeding 3 attempts invalidates the OTP session.
+- **Maximum Attempt Limit**: 5 invalid verification attempts per OTP challenge session. Exceeding 5 attempts invalidates and exhausts the OTP challenge.
 - **Resend Cooldown**: 60 seconds between resend requests for the same phone number.
-- **Storage**: Store SHA-256 hash of OTP code (`OtpHash`), `Phone`, `ExpiresAt`, `AttemptCount`, `IsUsed` in `OtpSessions` table. Plaintext OTPs must never be persisted.
+- **Secret Protection**: Store HMAC-SHA-256 keyed verifier string (`OtpHash`) using a server-side secret key. Plaintext OTPs and secret keys must never be persisted inside `OtpChallenge` or logged.
 
 ## 4. Environment Providers
-- **`DevelopmentSmsProvider`**: Active in Development/Test environment. Logs generated OTP to standard application logs. Accepts fixed OTP `123456` in automated integration tests when configured.
+- **`DevelopmentSmsProvider`**: Active in Development/Test environment. Captures sent SMS messages in memory for dev/testing.
 - **`ProductionSmsProvider`**: Vendor-agnostic abstraction configured in Production environment. Vendor selection deferred until production deployment phase.
 
 ## 5. Generic API Security Responses
