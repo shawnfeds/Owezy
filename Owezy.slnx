@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Owezy.Api/Owezy.Api.csproj" />
+    <Project Path="src/Owezy.Application/Owezy.Application.csproj" />
+    <Project Path="src/Owezy.Domain/Owezy.Domain.csproj" />
+    <Project Path="src/Owezy.Infrastructure/Owezy.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Owezy.ArchitectureTests/Owezy.ArchitectureTests.csproj" />
+    <Project Path="tests/Owezy.IntegrationTests/Owezy.IntegrationTests.csproj" />
+    <Project Path="tests/Owezy.UnitTests/Owezy.UnitTests.csproj" />
+  </Folder>
+</Solution>
