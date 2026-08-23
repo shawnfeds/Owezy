@@ -1,17 +1,19 @@
-# Current Active Task — Phase 1 / Milestone 1.2: OTP Domain & Service Contracts (Security Finalized)
+# Current Active Task — Phase 1 / Milestone 1.3: OTP Persistence Foundation
 
 ## Objective
-Finalize OTP security hardening: remove hardcoded secrets, rename implementation to `HmacSha256OtpHasher`, enforce constant-time byte comparison (`CryptographicOperations.FixedTimeEquals`), and update test suites.
-
-## Active Scope & Tasks
-- [x] Remove default hardcoded secret string from `OtpHasherOptions`
-- [x] Rename `Sha256OtpHasher` $\rightarrow$ `HmacSha256OtpHasher`
-- [x] Add fail-fast validation (`InvalidOperationException`) when `SecretKey` is missing/whitespace
-- [x] Implement constant-time byte array comparison via `CryptographicOperations.FixedTimeEquals`
-- [x] Add unit tests for fail-fast options, malformed verifiers, leading-zero OTPs, and key isolation
-- [x] Source & config scan: 0 hardcoded secrets in source files or `appsettings*.json`
-- [x] Solution compilation & architecture test verification (54 tests passing)
-- [x] Update status & handoff documentation
+Establish SQL Server EF Core persistence for OTP challenges.
 
 ## Status
-**Completed**. Ready for review. HARD STOP condition reached.
+**COMPLETED**. Next milestone: Phase 1 / Milestone 1.4 — Authentication Flow Orchestration.
+
+## What was implemented
+- [x] `OwezyDbContext` with `DbSet<OtpChallengeRow>` (Infrastructure only)
+- [x] `OtpChallengeRow` — EF persistence model (internal to Infrastructure)
+- [x] `OtpChallengeConfiguration` — Fluent API mapping with all columns, constraints, index, and rowversion
+- [x] `OwezyDbContextFactory` — Design-time factory for `dotnet ef migrations add`
+- [x] `SqlOtpChallengeRepository` — `IOtpChallengeRepository` implementation
+- [x] `InfrastructureAssemblyMarker` — Assembly marker (replaced deleted `Class1.cs`)
+- [x] Migration: `InitialOtpChallengeSchema` created and verified
+- [x] SQL Server integration tests (8 tests — all passing against LocalDB)
+- [x] Architecture tests updated and passing (4/4)
+- [x] Unit tests unchanged and passing (49/49)

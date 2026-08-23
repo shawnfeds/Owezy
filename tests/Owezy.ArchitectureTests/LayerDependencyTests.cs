@@ -35,7 +35,7 @@ public class LayerDependencyTests
     [Fact]
     public void Infrastructure_MustNot_DependOn_Api()
     {
-        var result = Types.InAssembly(typeof(Owezy.Infrastructure.Class1).Assembly)
+        var result = Types.InAssembly(typeof(Owezy.Infrastructure.InfrastructureAssemblyMarker).Assembly)
             .ShouldNot()
             .HaveDependencyOn(ApiNamespace)
             .GetResult();

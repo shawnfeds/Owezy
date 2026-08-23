@@ -6,7 +6,7 @@
 - **Architecture**: Modular Monolith (.NET 10 C#, SQL Server, EF Core, Vanilla/Vite Client)
 - **Solution File**: `Owezy.slnx`
 - **Current Phase**: Phase 1 — Splitter Authentication
-- **Current Milestone**: Milestone 1.2 — OTP Domain & Service Contracts (Hardened & Completed)
+- **Current Milestone**: Milestone 1.3 — OTP Persistence Foundation (COMPLETED)
 
 ---
 
@@ -15,7 +15,7 @@
 | Phase | Description | Status | Completion Gate |
 |-------|-------------|--------|-----------------|
 | **Phase 0** | Foundation Scaffolding & Governance | **COMPLETED** | Solution `Owezy.slnx` scaffolded, .ai rules, ADRs, specs & directional architecture tests passing |
-| **Phase 1** | Splitter Authentication | **IN PROGRESS (1.1 & 1.2 COMPLETED)** | Milestones 1.1 & 1.2 verified; OTP persistence & JWT authentication flow pending |
+| **Phase 1** | Splitter Authentication | **IN PROGRESS (1.1, 1.2, 1.3 COMPLETED)** | Milestones 1.1–1.3 verified; JWT authentication flow pending |
 | **Phase 2** | Bill Management Core | Pending | Manual bill creation, items & participant management backend + minimum bill UI |
 | **Phase 3** | Advisory OCR Pipeline | Pending | OCR abstraction, hashing, caching & resilience backend + OCR review UI |
 | **Phase 4** | Splitting Engine | Pending | Equal split claim logic & Largest Remainder Method backend + minimum claim/split UI |
@@ -39,6 +39,8 @@
 - **Monetary Precision**: `decimal` + Largest Remainder Method (ADR-008)
 - **Payment Boundary**: UPI link generation & manual confirmation (ADR-009)
 - **Item Splitting**: Equal division among claimers (ADR-010)
+- **OTP Persistence Row Type**: Infrastructure-internal `OtpChallengeRow` (EF Core persistence model); domain `OtpChallenge` reconstructed via `Reconstitute()` — EF types never exposed through Application contracts.
+- **Concurrency**: SQL Server `rowversion` column on `OtpChallenges` table for optimistic concurrency on state/attempt updates.
 
 ---
 
