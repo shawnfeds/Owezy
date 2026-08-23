@@ -1,17 +1,19 @@
-# Current Active Task — Milestone 0.1: Baseline & Documentation Reconciliation
+# Current Active Task — Milestone 0.2: Foundation Refinement & Baseline Locking
 
 ## Objective
-Establish a clean, authoritative engineering baseline for Owezy, reconcile documentation, define ADRs and canonical specs, setup AI governance, and scaffold the modular monolith solution.
+Lock and correct the engineering foundation before feature development. Refine technology stack references (.NET 10, `Owezy.slnx`), strengthen directional architecture tests, update participant security terminology, clarify OCR/OTP abstractions, and correct phase plan definitions.
 
-## Active Scope & Tasks
-- [x] Review workspace & user requirements
-- [x] Create `.ai/` governance files (`AGENT_RULES.md`, `PROJECT_STATUS.md`, `CURRENT_TASK.md`, `HANDOFF.md`)
-- [x] Write 10 Architecture Decision Records (`docs/adr/ADR-001.md` through `ADR-010.md`)
-- [x] Write Canonical Product & Technical Specifications (`docs/spec/`)
-- [x] Create Detailed Milestone Implementation Plan (`docs/PHASE_PLAN.md`)
-- [x] Scaffold Solution & Project directory structure (`src/`, `tests/`)
-- [x] Verify architecture tests and solution compilation (`dotnet test`)
-- [x] Provide completion summary report and wait for user instruction for Phase 1
+## Active Scope
+- [x] Standardize .NET version (.NET 10) and solution file (`Owezy.slnx`) across docs
+- [x] Update Phase 0 definition to accurately reflect current repository state
+- [x] Strengthen directional architecture tests (`Domain` $\leftarrow$ `Application` $\leftarrow$ `Infrastructure` $\leftarrow$ `Api`)
+- [x] Update participant security terminology to "Scoped read access + limited payment-status mutation"
+- [x] Clarify `billToken` + `participantToken` relationship scoping
+- [x] Remove premature SMS provider commitments (abstract `DevelopmentSmsProvider` + `ProductionSmsProvider`)
+- [x] Update OCR resilience requirements (remove Polly dependency, specify architecture requirements)
+- [x] Correct phase plan frontend strategy (feature-specific minimum UI in Phases 1–6; Phase 7 redefined to "UI Consolidation, PWA & UX Hardening")
+- [x] Verify solution builds cleanly and architecture tests pass
+- [x] Git check & commit (`chore: establish owezy engineering baseline`)
 
-## Status
-**Completed**. Ready for review. STOP condition reached.
+## Non-Goals
+- ALL application feature implementation (No Auth, OTP, Bills, OCR, Splitting, Links, Payments, UI components).

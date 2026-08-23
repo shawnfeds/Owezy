@@ -23,7 +23,7 @@ Owezy operates two distinct authorization mechanisms:
               Cryptographic Tokens
                            │
                            ▼
-      Server Scoped Read Only (Own Split Details)
+   Scoped Read Access + Limited Payment-Status Mutation
 ```
 
 ## 2. Splitter Authorization
@@ -34,13 +34,17 @@ Owezy operates two distinct authorization mechanisms:
   - `exp`: Expiration timestamp (e.g. 7 days)
 - **Permissions**: Full CRUD access over bills created by `sub`. Ability to confirm participant payments and modify bill status.
 
-## 3. Participant Authorization & Token Generation
+## 3. Participant Authorization & Token Scoping
 - **Credential**: Pair of cryptographically random tokens (`billToken`, `participantToken`).
+- **Scoping Definition**: Access is strictly scoped to a specific `(Bill, Participant)` relationship. The participant token is NOT a globally meaningful participant identity.
 - **Generation Rules**:
   - Generated using `RandomNumberGenerator.GetBytes(32)` (256-bit entropy).
   - Formatted as URL-safe Base64 strings.
   - Independent of database primary keys, phone numbers, or bill IDs.
-- **Permissions**: Read-only access to their specific share; write access to update their payment status (`Unpaid` -> `MarkedPaid`).
+- **Access Model**: **"Scoped read access + limited payment-status mutation"**
+  - Read: Own participant details, claimed items, calculated share total, payment state, splitter UPI VPA.
+  - Limited Mutation: Mark own payment status as paid (`Unpaid` -> `MarkedPaid`).
+  - Prohibited: Modifying bill, modifying other participants, viewing other participants' financial info, changing other participants' payment states, finalizing bills, managing bills, accessing splitter history.
 
 ## 4. Server-Side Scoped Data Protection
 To guarantee participant privacy, server controllers MUST execute scoped query handlers:

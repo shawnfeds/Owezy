@@ -2,59 +2,52 @@
 
 This document outlines the detailed 10-phase roadmap for building Owezy. Every phase represents a controlled milestone with strict scope enforcement, test requirements, and completion gates.
 
+> [!IMPORTANT]
+> **INCREMENTAL FRONTEND STRATEGY**
+> Each feature phase (Phases 1–6) includes the **minimum UI required** to implement and verify that feature end-to-end. Phase 7 is reserved for UI consolidation, PWA capabilities, and final UX polish.
+
 ---
 
 ## Phase 0 — Foundation & Infrastructure Scaffolding
 
 ### Objective
-Establish solution directory structure, project files, EF Core DbContext, basic logging, health check endpoints, and architecture testing scaffolding.
+Establish solution directory structure (`Owezy.slnx`), project files, AI governance files, ADR suite, technical specifications, and architecture testing scaffolding.
 
-### Scope
-- .NET 8 Solution (`Owezy.sln`) setup with modular monolith layer layout.
-- NuGet package references (`Microsoft.EntityFrameworkCore.SqlServer`, `NetArchTest.eNet`).
-- Initial empty `OwezyDbContext` setup.
-- Architecture test suite asserting dependency direction rules.
+### Actual Scope Delivered
+- .NET 10 Solution (`Owezy.slnx`) setup with modular monolith layer layout (`Owezy.Api`, `Owezy.Application`, `Owezy.Domain`, `Owezy.Infrastructure`, `Owezy.Client`).
+- `.ai/` engineering governance framework (`AGENT_RULES.md`, `PROJECT_STATUS.md`, `CURRENT_TASK.md`, `HANDOFF.md`).
+- 10 Architecture Decision Records (`docs/adr/ADR-001.md` through `ADR-010.md`).
+- Canonical Technical Specifications (`docs/spec/`).
+- Architecture test suite asserting directional dependency rules (`Domain` $\leftarrow$ `Application` $\leftarrow$ `Infrastructure` $\leftarrow$ `Api`).
 
-### Dependencies
-- None.
-
-### Expected Files
+### Expected Scaffolding Files
+- `Owezy.slnx`
 - `src/Owezy.Api/Owezy.Api.csproj`, `Program.cs`
 - `src/Owezy.Application/Owezy.Application.csproj`
 - `src/Owezy.Domain/Owezy.Domain.csproj`
 - `src/Owezy.Infrastructure/Owezy.Infrastructure.csproj`
-- `src/Owezy.Client/index.html`, `index.css`, `app.js`
+- `src/Owezy.Client/index.html`, `styles/main.css`, `js/app.js`
 - `tests/Owezy.UnitTests/Owezy.UnitTests.csproj`
 - `tests/Owezy.IntegrationTests/Owezy.IntegrationTests.csproj`
 - `tests/Owezy.ArchitectureTests/LayerDependencyTests.cs`
 
 ### Acceptance Criteria
-- Solution compiles cleanly with zero warnings (`dotnet build`).
-- `Owezy.ArchitectureTests` runs and verifies that `Owezy.Domain` has no dependencies on Infrastructure or Api.
-- GET `/health` returns HTTP 200 OK.
-
-### Tests Required
-- Architecture unit tests for layer rules.
-
-### Non-Goals
-- No business logic, auth, or DB migrations executed yet.
+- Solution compiles cleanly with zero errors (`dotnet build`).
+- `Owezy.ArchitectureTests` runs and verifies that `Domain` has no dependencies on Application/Infrastructure/Api, `Application` has no dependency on Infrastructure/Api, and `Infrastructure` has no dependency on Api.
 
 ### Completion Gate
-- Clean build, passing architecture tests.
+- Clean build, passing architecture tests, git repository initialized with baseline commit.
 
 ---
 
 ## Phase 1 — Splitter Authentication
 
 ### Objective
-Implement Phone + OTP + JWT authentication for Splitters with `DevSmsProvider`.
+Implement Phone + OTP + JWT authentication for Splitters with `DevelopmentSmsProvider` and minimum authentication UI.
 
 ### Scope
-- Phone number normalization service.
-- OTP generation, SHA-256 hashing, and verification use cases (`RequestOtpCommand`, `VerifyOtpCommand`).
-- `IOtpService` and `ISmsProvider` implementations (`DevSmsProvider`).
-- JWT token generator (`IJwtTokenGenerator`).
-- Splitter authentication API endpoints (`/api/auth/request-otp`, `/api/auth/verify-otp`).
+- Backend: Phone normalization, OTP generation, SHA-256 hashing, verification (`RequestOtpCommand`, `VerifyOtpCommand`), `DevelopmentSmsProvider`, `IJwtTokenGenerator`, endpoints (`/api/auth/request-otp`, `/api/auth/verify-otp`).
+- Minimum UI: Phone input form, OTP entry widget, and JWT token storage in `Owezy.Client`.
 
 ### Dependencies
 - Phase 0.
@@ -63,19 +56,19 @@ Implement Phone + OTP + JWT authentication for Splitters with `DevSmsProvider`.
 - `Owezy.Application/Auth/...`
 - `Owezy.Infrastructure/Auth/...`
 - `Owezy.Api/Controllers/AuthController.cs`
+- `src/Owezy.Client/js/auth.js`
 
 ### Acceptance Criteria
-- Valid phone number receives HTTP 200 on OTP request.
-- Valid 6-digit OTP returns JWT token.
+- Valid phone number receives HTTP 200 on OTP request (logged to dev console).
+- Valid 6-digit OTP returns JWT token and logs user in UI.
 - Invalid OTP fails with HTTP 400 after 3 attempts.
-- Expiration and resend cooldowns enforced.
 
 ### Tests Required
 - Unit tests for phone normalization, OTP hashing, attempt counting.
 - Integration tests for auth API controller.
 
 ### Non-Goals
-- Production SMS provider setup.
+- Production SMS provider integration.
 
 ### Completion Gate
 - Unit & integration tests passing 100%.
@@ -85,20 +78,14 @@ Implement Phone + OTP + JWT authentication for Splitters with `DevSmsProvider`.
 ## Phase 2 — Bill Management Core
 
 ### Objective
-Allow authenticated Splitters to create bills, add/edit line items, add participants, and review bill state.
+Allow authenticated Splitters to create bills, add/edit line items, add participants, and review bill state with minimum bill management UI.
 
 ### Scope
-- Entities: `Bill`, `BillItem`, `Participant`.
-- Use cases: `CreateBillCommand`, `AddBillItemCommand`, `UpdateBillItemCommand`, `AddParticipantCommand`, `GetSplitterBillQuery`.
-- API Endpoints: `/api/bills` (POST, GET, PUT).
+- Backend: Entities (`Bill`, `BillItem`, `Participant`), use cases (`CreateBillCommand`, `AddBillItemCommand`, `UpdateBillItemCommand`, `AddParticipantCommand`, `GetSplitterBillQuery`), API endpoints (`/api/bills`).
+- Minimum UI: Bill creation form, item addition list, participant input widget.
 
 ### Dependencies
 - Phase 1 (Splitter JWT required).
-
-### Expected Files
-- `Owezy.Domain/Entities/Bill.cs`, `BillItem.cs`, `Participant.cs`
-- `Owezy.Application/Billing/...`
-- `Owezy.Api/Controllers/BillsController.cs`
 
 ### Acceptance Criteria
 - Authenticated Splitter can create bill with title, date, service charge/tax.
@@ -109,68 +96,48 @@ Allow authenticated Splitters to create bills, add/edit line items, add particip
 - Entity domain validation unit tests.
 - Bill CRUD integration tests.
 
-### Non-Goals
-- OCR scan import, item splitting calculation, sharing links.
-
 ### Completion Gate
-- All bill management endpoints verified via integration tests.
+- All bill management endpoints and minimum UI verified.
 
 ---
 
 ## Phase 3 — Advisory OCR Pipeline
 
 ### Objective
-Implement `IOcrService` with image SHA-256 hashing, SQL caching, and Azure Document Intelligence provider abstraction.
+Implement `IOcrService` with image SHA-256 hashing, SQL caching, external OCR provider abstraction, and OCR review UI.
 
 ### Scope
-- `IOcrService` application interface.
-- Image SHA-256 hash calculation and cache repository (`OcrCacheEntry`).
-- Azure Document Intelligence provider (`AzureFormRecognizerOcrProvider`).
-- Upload receipt endpoint (`POST /api/bills/ocr-scan`).
-- Output parsed candidate items for Splitter review.
+- Backend: `IOcrService` interface, image SHA-256 hash calculation and cache repository (`OcrCacheEntry`), external OCR provider, upload endpoint (`POST /api/bills/ocr-scan`), rate limiting middleware.
+- Minimum UI: Receipt image upload button, scan preview widget, line item review/editing screen.
 
 ### Dependencies
 - Phase 2.
 
-### Expected Files
-- `Owezy.Application/OCR/...`
-- `Owezy.Infrastructure/OCR/...`
-- `Owezy.Api/Controllers/OcrController.cs`
-
 ### Acceptance Criteria
-- Scanning receipt image extracts line items (`Name`, `Quantity`, `UnitPrice`, `LineTotal`).
-- Re-submitting identical image hash returns cached JSON result without calling Azure OCR.
-- Rate limiting middleware blocks excessive OCR uploads (>5/hr).
+- Scanning receipt image extracts candidate items (`Name`, `Quantity`, `UnitPrice`, `LineTotal`).
+- Re-submitting identical image hash returns cached JSON result without calling external OCR API.
+- User can correct OCR output in review UI.
 
 ### Tests Required
 - SHA-256 hash deduplication unit tests.
 - OCR cache repository integration tests.
 
-### Non-Goals
-- Redis cache.
-
 ### Completion Gate
-- OCR caching and fallback logic verified.
+- OCR caching, review UI, and fallback logic verified.
 
 ---
 
 ## Phase 4 — Splitting Engine
 
 ### Objective
-Implement equal item claiming, tax/service charge distribution, and the Largest Remainder Method rounding algorithm.
+Implement equal item claiming, tax/service charge distribution, Largest Remainder Method rounding algorithm, and minimum claim/split UI.
 
 ### Scope
-- Item claim associations (`ParticipantItemClaim`).
-- `LargestRemainderSplitter` domain service engine.
-- Calculation use case (`FinalizeBillSplitCommand`).
-- Exact paisa reconciliation invariants.
+- Backend: Item claims (`ParticipantItemClaim`), `LargestRemainderSplitter` domain service, `FinalizeBillSplitCommand`, exact paisa reconciliation invariant.
+- Minimum UI: Item claim checkboxes per participant, instant split summary view.
 
 ### Dependencies
 - Phase 2.
-
-### Expected Files
-- `Owezy.Domain/Services/LargestRemainderSplitter.cs`
-- `Owezy.Application/Splitting/...`
 
 ### Acceptance Criteria
 - Items claimed by $N$ participants divided equally.
@@ -180,9 +147,6 @@ Implement equal item claiming, tax/service charge distribution, and the Largest 
 ### Tests Required
 - Comprehensive unit test matrix covering edge cases (e.g. ₹100 split 3 ways, ₹0.01 remainders, multiple items).
 
-### Non-Goals
-- Per-person weighted quantity consumption tracking.
-
 ### Completion Gate
 - 100% test pass rate on monetary calculation test suite.
 
@@ -191,31 +155,23 @@ Implement equal item claiming, tax/service charge distribution, and the Largest 
 ## Phase 5 — Participant Sharing & Scoped Privacy
 
 ### Objective
-Generate secure, non-derivable participant links and enforce backend server-side scoped privacy.
+Generate relationship-scoped participant links (`/split/{billToken}/{participantToken}`) with server-side scoped privacy and minimum participant split UI.
 
 ### Scope
-- Cryptographic token generation (`billToken`, `participantToken`).
-- Endpoint: `GET /api/split/{billToken}/{participantToken}`.
-- Scoped query handler returning `ParticipantShareDto`.
+- Backend: Cryptographic token pair generation, endpoint `GET /api/split/{billToken}/{participantToken}`, scoped query handler returning `ParticipantShareDto`.
+- Minimum UI: Participant split view showing claimed items, calculated share total, payment status, and Splitter UPI VPA.
 
 ### Dependencies
 - Phase 4.
 
-### Expected Files
-- `Owezy.Application/Sharing/...`
-- `Owezy.Api/Controllers/ParticipantSplitController.cs`
-
 ### Acceptance Criteria
-- Participant token link resolves participant's individual share.
-- Response contains ONLY that participant's items, total, and payment details.
-- Response excludes other participants' financial totals or claimed items.
+- Participant link resolves participant's individual share.
+- Response contains ONLY that participant's items, total, and payment details (**"Scoped read access + limited payment-status mutation"**).
+- Excludes other participants' financial totals or claimed items on the server.
 
 ### Tests Required
 - Privacy isolation tests (verifying Alice cannot see Bob's data).
 - Token security tests (verifying non-derivability).
-
-### Non-Goals
-- Participant account creation or login prompts.
 
 ### Completion Gate
 - Security privacy isolation suite passing.
@@ -225,19 +181,14 @@ Generate secure, non-derivable participant links and enforce backend server-side
 ## Phase 6 — UPI Payments & Status Confirmation
 
 ### Objective
-Generate UPI payment links (`upi://pay`), allow participants to mark split as paid, and allow Splitter to confirm payment.
+Generate UPI payment links (`upi://pay`), allow participants to mark split as paid, allow Splitter to confirm payment, and minimum payment UI.
 
 ### Scope
-- UPI URL generator (`UpiPaymentUrlBuilder`).
-- Participant action: `POST /api/split/{billToken}/{participantToken}/mark-paid`.
-- Splitter action: `POST /api/bills/{billId}/participants/{participantId}/confirm-payment`.
+- Backend: `UpiPaymentUrlBuilder`, participant endpoint `POST /api/split/{billToken}/{participantToken}/mark-paid`, splitter endpoint `POST /api/bills/{billId}/participants/{participantId}/confirm-payment`.
+- Minimum UI: "Pay via UPI" button launching UPI app, "Mark as Paid" button for participant, payment confirmation toggle for Splitter.
 
 ### Dependencies
 - Phase 5.
-
-### Expected Files
-- `Owezy.Application/Payments/...`
-- `Owezy.Api/Controllers/PaymentsController.cs`
 
 ### Acceptance Criteria
 - `upi://pay` deep link correctly includes Splitter VPA, participant amount, and reference note.
@@ -247,58 +198,45 @@ Generate UPI payment links (`upi://pay`), allow participants to mark split as pa
 - UPI string formatting unit tests.
 - Payment state transition integration tests.
 
-### Non-Goals
-- Payment gateway webhooks or automated bank polling.
-
 ### Completion Gate
 - Status state transitions verified via tests.
 
 ---
 
-## Phase 7 — Frontend Application (Owezy.Client)
+## Phase 7 — UI Consolidation, PWA & UX Hardening
 
 ### Objective
-Build responsive, lightweight mobile-first UI for Splitter workspace and Participant split view.
+Refine responsive layout, implement PWA capabilities, polish user experience, ensure accessibility, and finalize visual presentation across all existing feature screens.
 
 ### Scope
-- Responsive HTML5 / CSS / Vanilla JS app (or Vite).
-- Splitter flow: Login (OTP) -> Create Bill -> OCR upload / Review -> Add Participants -> Claim items -> View Summary -> Share Links -> Confirm Payments.
-- Participant flow: Open Link -> View Share -> Launch UPI -> Mark Paid.
+- Responsive UI refinement (mobile, tablet, desktop viewports).
+- PWA features: Service worker, web app manifest, offline indicator.
+- UX polish: Micro-animations, loading states, error boundary banners, visual hierarchy.
+- Installability & cross-screen integration testing.
 
 ### Dependencies
 - Phases 1–6.
 
-### Expected Files
-- `src/Owezy.Client/index.html`
-- `src/Owezy.Client/styles/main.css`
-- `src/Owezy.Client/js/app.js`
-
 ### Acceptance Criteria
-- Mobile responsive layout (320px to 1200px viewports).
-- Clean user experience with smooth interactions and micro-animations.
-- No exposed passwords or registration forms for participants.
-
-### Tests Required
-- Frontend UI browser flow verification.
-
-### Non-Goals
-- Native iOS/Android app code.
+- Fully responsive across 320px to 1200px viewports.
+- Service worker and web manifest registered cleanly.
+- Smooth visual presentation without UI flicker or state desynchronization.
 
 ### Completion Gate
-- End-to-end user workflow operational in browser.
+- Visual and responsive UX verification clean run.
 
 ---
 
 ## Phase 8 — Security, Hardening & Rate Limiting
 
 ### Objective
-Harden API security, enforce global rate limits, input sanitization, and architecture rules.
+Harden API security, enforce global rate limits, security headers, input sanitization, and architecture rules.
 
 ### Scope
 - Global ASP.NET Core rate limiting middleware.
 - Security header injection (CSP, HSTS, X-Frame-Options).
 - Input validation filters.
-- NetArchTest suite execution.
+- `Owezy.ArchitectureTests` suite execution.
 
 ### Dependencies
 - Phases 1–7.

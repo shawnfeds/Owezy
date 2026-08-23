@@ -11,7 +11,7 @@ public class LayerDependencyTests
     private const string ApiNamespace = "Owezy.Api";
 
     [Fact]
-    public void Domain_Should_Not_DependOn_Other_Layers()
+    public void Domain_MustNot_DependOn_Application_Infrastructure_Or_Api()
     {
         var result = Types.InAssembly(typeof(Owezy.Domain.Class1).Assembly)
             .ShouldNot()
@@ -22,7 +22,7 @@ public class LayerDependencyTests
     }
 
     [Fact]
-    public void Application_Should_Not_DependOn_Infrastructure_Or_Api()
+    public void Application_MustNot_DependOn_Infrastructure_Or_Api()
     {
         var result = Types.InAssembly(typeof(Owezy.Application.Class1).Assembly)
             .ShouldNot()
@@ -30,5 +30,16 @@ public class LayerDependencyTests
             .GetResult();
 
         Assert.True(result.IsSuccessful, "Application layer must not depend on Infrastructure or Api layers.");
+    }
+
+    [Fact]
+    public void Infrastructure_MustNot_DependOn_Api()
+    {
+        var result = Types.InAssembly(typeof(Owezy.Infrastructure.Class1).Assembly)
+            .ShouldNot()
+            .HaveDependencyOn(ApiNamespace)
+            .GetResult();
+
+        Assert.True(result.IsSuccessful, "Infrastructure layer must not depend on Api layer.");
     }
 }

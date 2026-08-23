@@ -1,11 +1,16 @@
 # Owezy Session Handoff Document
 
 ## Current State Summary
-- Milestone 0.1 (Engineering Baseline & Documentation Reconciliation) is **FULLY COMPLETED**.
-- All `.ai/` governance files, 10 ADRs, canonical technical specifications, and `docs/PHASE_PLAN.md` have been created.
-- The Modular Monolith solution (`Owezy.sln`) with layer projects (`Owezy.Api`, `Owezy.Application`, `Owezy.Domain`, `Owezy.Infrastructure`, `Owezy.Client`) and test projects (`Owezy.UnitTests`, `Owezy.IntegrationTests`, `Owezy.ArchitectureTests`) is scaffolded.
-- Solution builds cleanly with 0 errors and all architecture tests pass.
-- **Zero feature logic** has been implemented in accordance with Prompt 0 instructions.
+- Milestone 0.2 (Foundation Refinement & Baseline Locking) is **COMPLETED**.
+- All documentation, ADRs, specifications, and AI governance files standardized on **.NET 10** and **`Owezy.slnx`**.
+- Directional architecture tests (`Domain` $\leftarrow$ `Application` $\leftarrow$ `Infrastructure` $\leftarrow$ `Api`) passing cleanly in `Owezy.ArchitectureTests`.
+- Participant access security terminology standardized: **"Scoped read access + limited payment-status mutation"**.
+- Phase Plan updated: Phases 1–6 include feature-specific minimum UI; Phase 7 redefined as "UI Consolidation, PWA & UX Hardening".
+- Git repository initialized and baseline committed (`chore: establish owezy engineering baseline`).
+- **Zero feature code has been implemented.**
 
-## Immediate Next Steps (Waiting for User Instruction)
-- Next Recommended Milestone: **Phase 1 — Splitter Authentication** (Phone + OTP + JWT flow with `DevSmsProvider`).
+## Next Milestone
+- Recommended Next Milestone: **Phase 1 — Splitter Authentication** (Phone + OTP + JWT backend + minimum auth UI).
+
+> [!WARNING]
+> **HARD STOP**: Do NOT start Phase 1 until explicitly instructed by the user.

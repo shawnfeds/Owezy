@@ -42,16 +42,18 @@ READ -> UNDERSTAND -> PLAN -> IMPLEMENT -> TEST -> VERIFY -> UPDATE STATUS -> ST
 ---
 
 ## 4. Architectural Rules
-- **Modular Monolith**: Single .NET Solution (`Owezy.sln`).
+- **Modular Monolith**: Single .NET 10 Solution (`Owezy.slnx`).
 - Layer boundaries: `Owezy.Api` -> `Owezy.Application` -> `Owezy.Domain` <- `Owezy.Infrastructure`.
+- Directional dependency enforcement (`Domain` has zero dependencies; `Application` depends only on `Domain`; `Infrastructure` depends on `Application` & `Domain`).
 - Module organization inside `Owezy.Application`: `Auth/`, `Billing/`, `OCR/`, `Splitting/`, `Payments/`, `Sharing/`.
 - **Database**: Microsoft SQL Server with Entity Framework Core. No PostgreSQL, no NoSQL, no Redis.
 - **Monetary Precision**: Always use `decimal`. Floating-point types (`float`, `double`) are strictly prohibited for financial calculations.
 - **Rounding Algorithm**: **Largest Remainder Method** with deterministic tie-breaking.
-- **Splitter vs Participant Privacy**:
+- **Splitter vs Participant Privacy & Security**:
   - Splitters authenticate via Phone + OTP -> JWT and have access to full bill state and history.
-  - Participants access via secure link `/split/{billToken}/{participantToken}` without login.
-  - The API MUST enforce server-side authorization so participants see ONLY their own split and claimed items.
+  - Participants access via secure relationship link `/split/{billToken}/{participantToken}` without login.
+  - Participant permissions: **"Scoped read access + limited payment-status mutation"** (reading own share/items/total/splitter UPI VPA + mutating only own payment status to paid).
+  - The API MUST enforce server-side authorization so participants see ONLY their own split.
 
 ---
 

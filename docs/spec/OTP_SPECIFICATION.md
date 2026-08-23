@@ -4,7 +4,7 @@
 Provide secure phone-based Splitter authentication with rate limiting, attempt tracking, secure hashing, and zero cost during local development and testing.
 
 ## 2. Phone Normalization
-All incoming phone numbers must be sanitized and normalized to E.164 format (e.g. `+919876543210`) using `libphonenumber-csharp` or equivalent regex prior to processing.
+All incoming phone numbers must be sanitized and normalized to E.164 format (e.g. `+919876543210`) prior to processing.
 
 ## 3. OTP Rules & Constraints
 - **Length**: 6 numeric digits (e.g., `584920`).
@@ -14,8 +14,8 @@ All incoming phone numbers must be sanitized and normalized to E.164 format (e.g
 - **Storage**: Store SHA-256 hash of OTP code (`OtpHash`), `Phone`, `ExpiresAt`, `AttemptCount`, `IsUsed` in `OtpSessions` table. Plaintext OTPs must never be persisted.
 
 ## 4. Environment Providers
-- **`DevSmsProvider`**: Active in Development/Test environment. Logs generated OTP to standard application logs. Accepts fixed OTP `123456` in automated integration tests when configured.
-- **`ProdSmsProvider`**: Active in Production environment. Invokes external SMS gateway API.
+- **`DevelopmentSmsProvider`**: Active in Development/Test environment. Logs generated OTP to standard application logs. Accepts fixed OTP `123456` in automated integration tests when configured.
+- **`ProductionSmsProvider`**: Vendor-agnostic abstraction configured in Production environment. Vendor selection deferred until production deployment phase.
 
 ## 5. Generic API Security Responses
 To prevent phone enumeration attacks, `/api/auth/request-otp` MUST return HTTP 200 OK with a generic message regardless of whether the phone number is already registered or new.

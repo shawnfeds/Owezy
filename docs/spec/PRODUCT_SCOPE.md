@@ -4,13 +4,13 @@
 Owezy is a lightweight, single-purpose bill-splitting application designed to make sharing receipt costs fast, accurate, and privacy-preserving.
 
 ## 2. In-Scope Features (v1)
-- **Splitter Authentication**: Phone number -> OTP -> JWT login.
+- **Splitter Authentication**: Phone number -> OTP -> JWT login (`DevelopmentSmsProvider` + `ProductionSmsProvider`).
 - **Bill Management**: Manual creation, item addition, line item quantity/price editing, participant management.
 - **Advisory OCR**: Receipt scan upload, advisory extraction (`Name`, `Quantity`, `UnitPrice`, `LineTotal`), OCR result review and manual correction.
-- **OCR Cost Controls**: SHA-256 image hashing, SQL analysis caching, upload rate limits, retries.
+- **OCR Cost Controls**: SHA-256 image hashing, SQL analysis caching, upload rate limits, architecture resilience requirements.
 - **Splitting Engine**: Equal division of claimed items among claimers, Largest Remainder Method rounding, exact paisa reconciliation.
-- **Participant Access**: Token-based secure link generation (`/split/{billToken}/{participantToken}`) without participant registration.
-- **Participant Scoped Privacy**: Server-side authorization restricting participant view strictly to their own split and claimed items.
+- **Participant Access**: Token-based relationship link generation (`/split/{billToken}/{participantToken}`) without participant registration.
+- **Participant Security & Privacy**: **"Scoped read access + limited payment-status mutation"** enforced server-side.
 - **UPI Settlement**: `upi://pay` deep link generation, participant "Mark as Paid" status, Splitter confirmation.
 - **Splitter History**: Simple listing of previous bills created by the authenticated Splitter.
 
