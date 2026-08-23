@@ -6,7 +6,7 @@
 - **Architecture**: Modular Monolith (.NET 10 C#, SQL Server, EF Core, Vanilla/Vite Client)
 - **Solution File**: `Owezy.slnx`
 - **Current Phase**: Phase 1 — Splitter Authentication
-- **Current Milestone**: Milestone 1.2 — OTP Domain & Service Contracts (Completed)
+- **Current Milestone**: Milestone 1.2 — OTP Domain & Service Contracts (Hardened & Completed)
 
 ---
 
@@ -35,7 +35,7 @@
 - **Participant Access**: Relationship Scoped Token Link `/split/{billToken}/{participantToken}` (ADR-004)
 - **Participant Access Model**: Scoped read access + limited payment-status mutation (ADR-005)
 - **OCR Strategy**: `IOcrService` abstraction, SHA-256 image hashing, SQL caching, architecture resilience requirements (ADR-006)
-- **OTP Architecture**: `IOtpService` -> `ISmsProvider` -> `DevelopmentSmsProvider` + `ProductionSmsProvider` (ADR-007)
+- **OTP Architecture**: `IOtpService` -> `ISmsProvider` -> `DevelopmentSmsProvider` + `ProductionSmsProvider`; HMAC-SHA-256 verifier via `HmacSha256OtpHasher` (ADR-007)
 - **Monetary Precision**: `decimal` + Largest Remainder Method (ADR-008)
 - **Payment Boundary**: UPI link generation & manual confirmation (ADR-009)
 - **Item Splitting**: Equal division among claimers (ADR-010)

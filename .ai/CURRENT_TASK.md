@@ -1,20 +1,16 @@
-# Current Active Task — Phase 1 / Milestone 1.2: OTP Domain & Service Contracts
+# Current Active Task — Phase 1 / Milestone 1.2: OTP Domain & Service Contracts (Security Finalized)
 
 ## Objective
-Establish the OTP domain aggregate, 6-digit leading-zero format, SHA-256 hash protection, 5-minute validity window, 5 attempt limit, `IOtpService`, `ISmsProvider`, and test suite.
+Finalize OTP security hardening: remove hardcoded secrets, rename implementation to `HmacSha256OtpHasher`, enforce constant-time byte comparison (`CryptographicOperations.FixedTimeEquals`), and update test suites.
 
 ## Active Scope & Tasks
-- [x] Create `OtpChallengeId` strongly-typed ID record struct
-- [x] Create `OtpState` and `OtpVerificationResult` enums
-- [x] Create `OtpChallenge` domain aggregate (5-minute expiry, 5 attempt limit, SHA-256 protection, state machine)
-- [x] Create `IDateTimeProvider` & `DateTimeProvider` time abstraction
-- [x] Create `IOtpGenerator` & `SecureOtpGenerator` (6-digit numeric with leading zeroes)
-- [x] Create `IOtpHasher` & `Sha256OtpHasher` (SHA-256 hex string hashing)
-- [x] Create `ISmsProvider` & `DevelopmentSmsProvider` (in-memory dev provider)
-- [x] Create `IOtpChallengeRepository` application repository contract
-- [x] Create `IOtpService` & `OtpService` application orchestrator
-- [x] Create unit tests (`OtpGeneratorTests`, `OtpHasherTests`, `OtpChallengeTests`, `OtpServiceTests`)
-- [x] Verify solution compilation (47 passing tests) and directional architecture rules
+- [x] Remove default hardcoded secret string from `OtpHasherOptions`
+- [x] Rename `Sha256OtpHasher` $\rightarrow$ `HmacSha256OtpHasher`
+- [x] Add fail-fast validation (`InvalidOperationException`) when `SecretKey` is missing/whitespace
+- [x] Implement constant-time byte array comparison via `CryptographicOperations.FixedTimeEquals`
+- [x] Add unit tests for fail-fast options, malformed verifiers, leading-zero OTPs, and key isolation
+- [x] Source & config scan: 0 hardcoded secrets in source files or `appsettings*.json`
+- [x] Solution compilation & architecture test verification (54 tests passing)
 - [x] Update status & handoff documentation
 
 ## Status

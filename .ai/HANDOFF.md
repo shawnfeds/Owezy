@@ -1,9 +1,10 @@
 # Owezy Session Handoff Document
 
 ## Current State Summary
-- Phase 1 / Milestone 1.2 (OTP Domain & Service Contracts) is **COMPLETED**.
-- Implemented `OtpChallenge` domain aggregate (5-minute expiry, 5 attempt limit, SHA-256 hash protection, state machine), `OtpChallengeId`, `OtpState`, `OtpVerificationResult`, `IDateTimeProvider`, `SecureOtpGenerator` (6-digit leading-zero numeric format), `Sha256OtpHasher`, `ISmsProvider`, `DevelopmentSmsProvider`, `IOtpChallengeRepository` contract, and `OtpService`.
-- Unit tests (42 tests) and directional architecture tests (4 tests) passing cleanly.
+- Phase 1 / Milestone 1.2 (OTP Domain & Service Contracts) is **FULLY FINALIZED & HARDENED**.
+- Implemented `HmacSha256OtpHasher` using HMAC-SHA-256 with externally supplied secret keys (`OtpHasherOptions`). Fails fast if secret key is missing. Enforces timing-safe verification via `CryptographicOperations.FixedTimeEquals`.
+- Unit tests (49 tests) and directional architecture tests (4 tests) passing cleanly.
+- **Zero secrets hardcoded in source or configuration files.**
 - **Zero infrastructure persistence, controllers, JWT, UI, or third-party SMS vendor SDKs implemented.**
 
 ## Next Milestone

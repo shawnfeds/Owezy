@@ -37,7 +37,7 @@ public class OtpServiceTests
 
     private readonly InMemoryOtpChallengeRepository _repository = new();
     private readonly SecureOtpGenerator _otpGenerator = new();
-    private readonly Sha256OtpHasher _otpHasher = new();
+    private readonly HmacSha256OtpHasher _otpHasher = new("test-service-secret-key-1234567890");
     private readonly DevelopmentSmsProvider _smsProvider = new();
     private readonly TestDateTimeProvider _dateTimeProvider = new();
     private readonly PhoneNumber _testPhone = PhoneNumber.Create("+919876543210");
