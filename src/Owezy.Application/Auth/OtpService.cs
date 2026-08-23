@@ -25,44 +25,85 @@ public sealed class OtpService : IOtpService
         _dateTimeProvider = dateTimeProvider ?? throw new ArgumentNullException(nameof(dateTimeProvider));
     }
 
-    public async Task<CreateChallengeResult> CreateChallengeAsync(PhoneNumber phoneNumber, CancellationToken cancellationToken = default)
+    public Task<RequestOtpResult> RequestOtpAsync(PhoneNumber phoneNumber, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(phoneNumber);
+        return RequestOtpAsync(new RequestOtpRequest(phoneNumber), cancellationToken);
+    }
+
+    public async Task<RequestOtpResult> RequestOtpAsync(RequestOtpRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.PhoneNumber);
 
         var now = _dateTimeProvider.UtcNow;
         var rawOtp = _otpGenerator.GenerateOtp();
         var hash = _otpHasher.HashOtp(rawOtp);
 
-        var challenge = OtpChallenge.Create(phoneNumber, hash, now);
+        var challenge = OtpChallenge.Create(request.PhoneNumber, hash, now);
 
         await _repository.AddAsync(challenge, cancellationToken);
 
-        var message = $"Your Owezy verification code is: {rawOtp}. Valid for 5 minutes.";
-        await _smsProvider.SendSmsAsync(phoneNumber, message, cancellationToken);
+        try
+        {
+            var message = $"Your Owezy verification code is: {rawOtp}. Valid for 5 minutes.";
+            await _smsProvider.SendSmsAsync(request.PhoneNumber, message, cancellationToken);
+            return RequestOtpResult.Success(challenge.Id);
+        }
+        catch (Exception)
+        {
+            challenge.Expire();
+            try
+            {
+                await _repository.UpdateAsync(challenge, cancellationToken);
+            }
+            catch
+            {
+                // Best effort cleanup if SMS provider fails
+            }
 
-        return new CreateChallengeResult(challenge.Id, challenge.ExpiresAt, challenge.RemainingAttempts);
+            return RequestOtpResult.Failure("SMS delivery failed. OTP challenge was invalidated.");
+        }
     }
 
-    public async Task<OtpVerificationResult> VerifyChallengeAsync(OtpChallengeId challengeId, string otpCode, CancellationToken cancellationToken = default)
+    public Task<VerifyOtpResult> VerifyOtpAsync(OtpChallengeId challengeId, string otpCode, CancellationToken cancellationToken = default)
     {
-        if (challengeId.Value == Guid.Empty || string.IsNullOrWhiteSpace(otpCode))
+        return VerifyOtpAsync(new VerifyOtpRequest(challengeId, otpCode), cancellationToken);
+    }
+
+    public async Task<VerifyOtpResult> VerifyOtpAsync(VerifyOtpRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request.ChallengeId.Value == Guid.Empty || string.IsNullOrWhiteSpace(request.OtpCode))
         {
-            return OtpVerificationResult.ChallengeNotFound;
+            return VerifyOtpResult.Failure(OtpVerificationResult.ChallengeNotFound);
         }
 
-        var challenge = await _repository.GetByIdAsync(challengeId, cancellationToken);
+        var challenge = await _repository.GetByIdAsync(request.ChallengeId, cancellationToken);
         if (challenge is null)
         {
-            return OtpVerificationResult.ChallengeNotFound;
+            return VerifyOtpResult.Failure(OtpVerificationResult.ChallengeNotFound);
         }
 
         var now = _dateTimeProvider.UtcNow;
-        var isMatch = _otpHasher.VerifyHash(otpCode, challenge.OtpHash);
+        var isMatch = _otpHasher.VerifyHash(request.OtpCode, challenge.OtpHash);
 
-        var result = challenge.Verify(isMatch, now);
+        var domainResult = challenge.Verify(isMatch, now);
 
-        await _repository.UpdateAsync(challenge, cancellationToken);
+        try
+        {
+            await _repository.UpdateAsync(challenge, cancellationToken);
+        }
+        catch (Exception)
+        {
+            return VerifyOtpResult.Failure(OtpVerificationResult.Exhausted);
+        }
 
-        return result;
+        if (domainResult == OtpVerificationResult.Success)
+        {
+            return VerifyOtpResult.Success(challenge.PhoneNumber);
+        }
+
+        return VerifyOtpResult.Failure(domainResult);
     }
 }

@@ -1,36 +1,38 @@
-# Handoff — Milestone 1.3 Complete
+# Handoff — Milestone 1.4 Complete
 
 ## Current State
 
-Milestone 1.3 is complete and committed.
+Milestone 1.4 (OTP Authentication Workflow) is complete.
 
-- **Commit**: `5df9d05`
-- **Message**: `feat(auth): add otp sql server persistence`
+## Workflow Capabilities
+
+- `IOtpService`:
+  - `RequestOtpAsync(RequestOtpRequest)` / `RequestOtpAsync(PhoneNumber)`
+    - Creates `OtpChallenge`, hashes OTP via HMAC-SHA-256, persists challenge via `IOtpChallengeRepository`.
+    - Delivers OTP via `ISmsProvider`.
+    - Returns `RequestOtpResult` containing `ChallengeId`. Never exposes OTP.
+    - On SMS failure: invalidates/expires challenge in DB and returns failure result safely.
+  - `VerifyOtpAsync(VerifyOtpRequest)` / `VerifyOtpAsync(ChallengeId, OtpCode)`
+    - Validates attempt count, expiry, exhausted, already completed, and OTP match.
+    - Persists updated state to DB.
+    - Returns `VerifyOtpResult` with status and canonical `AuthenticatedPhoneNumber` on success.
 
 ## Verification
 
 | Check | Result |
 |---|---|
 | Build | PASS |
-| Unit tests | 37/37 |
-| Integration tests | 7/7 |
-| Architecture tests | 3/3 |
-| Working tree | CLEAN |
-
-All SQL Server integration tests executed successfully against LocalDB.
-
-## Current Persistence
-
-- Table `OtpChallenges` exists via EF Core migration `InitialOtpChallengeSchema`.
-- SQL Server + EF Core. Repository in `Owezy.Infrastructure`.
-- `RowVersion` concurrency token present.
+| Unit tests | 53/53 |
+| Integration tests | 8/8 |
+| Architecture tests | 4/4 |
+| Working tree | CLEAN (after commit) |
 
 ## Security
 
-- OTP plaintext is never persisted.
-- HMAC secret is never persisted.
-- OTP verifier uses HMAC-SHA-256 with constant-time comparison.
+- Plaintext OTP is never returned, persisted, or logged.
+- HMAC verifier and secret remain isolated inside hashing component.
+- Repeated failed attempts exhaust challenge; expired/verified challenges cannot be reused.
 
 ## Next
 
-Milestone 1.4. Do not implement until explicitly instructed.
+Milestone 1.5. Do not implement until explicitly instructed.

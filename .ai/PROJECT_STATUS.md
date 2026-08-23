@@ -28,13 +28,15 @@ Domain ← Application ← Infrastructure ← API
 
 OTP-based. Phone → OTP → JWT (JWT not yet implemented).
 
-Current OTP security:
+Current OTP security & application workflow:
 - Cryptographically secure 6-digit OTP
 - 5-minute expiration
 - Max 5 failed attempts
 - HMAC-SHA-256 verifier with external HMAC secret
 - Constant-time verification
-- Plaintext OTP never persisted
+- Plaintext OTP never persisted or returned
+- `RequestOtpAsync` (creates challenge, hashes OTP, persists, sends via `ISmsProvider`, handles SMS failure)
+- `VerifyOtpAsync` (validates OTP, handles attempts/expiry/exhaustion, returns `VerifyOtpResult` with canonical phone identity)
 
 ## Persistence
 
@@ -52,10 +54,11 @@ Key fields: `Id`, `PhoneNumber`, `OtpHash`, `CreatedAt`, `ExpiresAt`, `Remaining
 - **1.1** Authentication Domain Foundation — COMPLETE
 - **1.2** OTP Domain & Service Contracts — COMPLETE
 - **1.3** OTP SQL Server Persistence — COMPLETE
+- **1.4** OTP Authentication Workflow — COMPLETE
 
 ## Current Milestone
 
-**1.4** — see `CURRENT_TASK.md` for objective.
+**1.5** — see `CURRENT_TASK.md` for objective.
 
 ## Not Yet Implemented
 

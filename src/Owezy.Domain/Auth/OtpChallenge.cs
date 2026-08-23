@@ -69,6 +69,11 @@ public sealed class OtpChallenge
         return new OtpChallenge(id, phoneNumber, otpHash, createdAt, expiresAt, remainingAttempts, state);
     }
 
+    public void Expire()
+    {
+        State = OtpState.Expired;
+    }
+
     public OtpVerificationResult Verify(bool isHashMatch, DateTimeOffset now)
     {
         if (State == OtpState.Verified)
