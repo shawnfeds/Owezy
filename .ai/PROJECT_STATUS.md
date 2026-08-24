@@ -28,12 +28,13 @@ Domain ← Application ← Infrastructure ← API
 
 OTP-based + JWT Access Token authentication.
 
-Bill, Participant & Items Domain:
+Bill, Participant, Items & Calculation Domain:
 - `Bill` aggregate: `Id`, `Title`, `SplitterPhoneNumber`, `CreatedAt`, `Status`, `Participants`, `Items`
 - Splitter automatically added as initial participant
 - Duplicate participant phone numbers rejected within a bill
-- `BillItem`: `Id`, `BillId`, `Description`, `Quantity` (>0), `Amount` (>0 exact decimal total line-item amount), `SharerParticipantIds` (one or more unique `ParticipantId`s belonging to the same bill)
-- Per-person split calculation is NOT implemented yet
+- `BillItem`: `Id`, `BillId`, `Description`, `Quantity` (>0), `Amount` (>0 exact decimal total line-item amount), `SharerParticipantIds`
+- `EqualSplitCalculator`: Pure domain service implementing equal-share division with largest-remainder rounding and deterministic tie-breaking by `ParticipantId ASC`
+- Calculated shares are derived and NOT persisted
 - Database persistence: `Bills`, `BillParticipants`, `BillItems`, and `BillItemSharers` tables
 - Endpoints:
   - `POST /auth/otp/request` → `202 Accepted`
@@ -65,13 +66,14 @@ Bill, Participant & Items Domain:
 - **1.6** Access Token Issuance — COMPLETE
 - **1.7** Bill & Participant Domain Foundation — COMPLETE
 - **1.8** Bill Items & Sharer Definitions — COMPLETE
+- **1.9** Authoritative Split Calculation Engine — COMPLETE
 
 ## Current Milestone
 
-**1.9** — see `CURRENT_TASK.md` for objective.
+**2.1** / Next Phase — see `CURRENT_TASK.md` for objective.
 
 ## Not Yet Implemented
 
-Largest Remainder Method (split calculation engine), OCR pipeline, participant link access tokens, payment tracking, UPI link generation, settlement.
+OCR pipeline, participant link access tokens, payment tracking, UPI link generation, settlement, notifications.
 
 Do not expand into these areas unless explicitly instructed.

@@ -1,4 +1,4 @@
-# Current Task — Phase 1 / Milestone 1.9
+# Current Task — Phase 2 Next Milestone
 
 ## Status
 
@@ -10,12 +10,12 @@ Phase 2 — Bill Management & Item Splitting Core
 
 ## Objective
 
-Define and implement the split calculation engine using the Largest Remainder Method with deterministic tie-breaking.
+Define and implement the next milestone (e.g. Bill Total / Summary Calculation or Participant Access Tokens) following completion of Authoritative Split Calculation Engine.
 
 ## Completed Prerequisites
 
-Milestones 1.1 through 1.8 are complete.
+Milestones 1.1 through 1.9 are complete.
 
 ## Rule
 
-Do not begin implementation until an explicit Milestone 1.9 prompt is provided.
+Do not begin implementation until an explicit next milestone prompt is provided.

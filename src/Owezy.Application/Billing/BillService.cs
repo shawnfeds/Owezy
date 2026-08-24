@@ -119,4 +119,51 @@ public sealed class BillService : IBillService
             item.SharerParticipantIds
         );
     }
+
+    public async Task<CalculateItemSharesResult> CalculateItemSharesAsync(
+        PhoneNumber callerPhoneNumber,
+        CalculateItemSharesRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(callerPhoneNumber);
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request.BillId.Value == Guid.Empty)
+        {
+            throw new ArgumentException("BillId cannot be empty.", nameof(request));
+        }
+        if (request.ItemId.Value == Guid.Empty)
+        {
+            throw new ArgumentException("ItemId cannot be empty.", nameof(request));
+        }
+
+        var bill = await _billRepository.GetByIdAsync(request.BillId, cancellationToken);
+        if (bill is null)
+        {
+            throw new KeyNotFoundException($"Bill with ID '{request.BillId}' was not found.");
+        }
+
+        // Caller must be a member of the bill (splitter or participant)
+        if (!bill.Participants.Any(p => p.PhoneNumber == callerPhoneNumber))
+        {
+            throw new UnauthorizedAccessException("Only bill members can view calculated shares.");
+        }
+
+        var item = bill.Items.FirstOrDefault(i => i.Id == request.ItemId);
+        if (item is null)
+        {
+            throw new KeyNotFoundException($"Item with ID '{request.ItemId}' was not found on bill '{request.BillId}'.");
+        }
+
+        var shares = EqualSplitCalculator.Calculate(item);
+        var shareResults = shares.Select(s => new ParticipantShareResult(s.ParticipantId, s.Amount)).ToList().AsReadOnly();
+
+        return new CalculateItemSharesResult(
+            bill.Id,
+            item.Id,
+            item.Description,
+            item.Amount,
+            shareResults
+        );
+    }
 }

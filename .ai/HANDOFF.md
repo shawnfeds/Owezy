@@ -1,42 +1,36 @@
-# Handoff — Milestone 1.8 Complete
+# Handoff — Milestone 1.9 Complete
 
 ## Current State
 
-Milestone 1.8 (Bill Items & Sharer Definitions) is complete.
+Milestone 1.9 (Authoritative Split Calculation Engine) is complete.
 
 ## Capabilities Implemented
 
-- `BillItem` entity & `Bill` aggregate updates (`Owezy.Domain.Billing`):
-  - Invariants: Non-empty description, positive `Quantity` (>0), positive `Amount` (>0 decimal total line-item amount), one or more unique sharer `ParticipantId`s.
-  - Cross-bill participant IDs rejected when defining item sharers.
-  - Duplicate sharer IDs within an item rejected.
-  - Splitter can be included as an item sharer.
+- `EqualSplitCalculator` pure domain service (`Owezy.Domain.Billing`):
+  - Equal-share division algorithm using Largest Remainder Method.
+  - Money conservation invariant: `SUM(ParticipantShares) == ItemAmount` exactly.
+  - Deterministic tie-breaking by `ParticipantId ASC` when remainders are identical.
+  - Input order independent (`[C, A, B]` produces identical mapping as `[A, B, C]`).
+  - Rejects zero, negative, high-precision (>2 decimals), or duplicate sharer inputs.
 - `IBillService` / `BillService` (`Owezy.Application.Billing`):
-  - `AddBillItemAsync`: Only authenticated splitter can add items to the bill.
-- Persistence (`Owezy.Infrastructure.Persistence`):
-  - Tables `BillItems` and `BillItemSharers`.
-  - Migration `AddBillItemsAndSharersTables` generated.
-  - Relationship `Bill` 1:N `BillItems`, `BillItem` M:N `BillParticipants` via `BillItemSharers`.
-- API (`Owezy.Api.Billing`):
-  - `POST /bills/{billId}/items` (protected by JWT, only authenticated splitter can add items).
+  - `CalculateItemSharesAsync`: Calculates derived participant shares for a bill item without persisting them.
 
 ## Verification
 
 | Check | Result |
 |---|---|
 | Build | PASS |
-| Unit tests | 80/80 |
+| Unit tests | 95/95 |
 | Architecture tests | 4/4 |
 | Integration & API tests | 27/27 |
 | Working tree | CLEAN (after commit) |
 
 ## Security & Scope Boundary
 
-- Only authenticated splitter can add items to a bill.
-- Cross-bill participant IDs cannot escape bill boundaries.
-- No per-person split calculation, Largest Remainder algorithm, or rounding implemented yet.
-- No OCR, receipt storage, payment tracking, settlement, or sharing links exist.
+- Pure domain calculation engine (zero external dependencies, zero DB access).
+- Calculated shares are derived in memory and NOT persisted.
+- Payment tracking, settlement, OCR, sharing links, and notifications are NOT implemented.
 
 ## Next
 
-Milestone 1.9 (Largest Remainder Calculation Engine). Do not implement until explicitly instructed.
+Next milestone. Do not implement until explicitly instructed.
