@@ -5,6 +5,7 @@ namespace Owezy.Domain.Billing;
 public sealed class Bill
 {
     private readonly List<Participant> _participants = new();
+    private readonly List<BillItem> _items = new();
 
     public BillId Id { get; }
     public string Title { get; }
@@ -13,6 +14,7 @@ public sealed class Bill
     public BillStatus Status { get; private set; }
 
     public IReadOnlyCollection<Participant> Participants => _participants.AsReadOnly();
+    public IReadOnlyCollection<BillItem> Items => _items.AsReadOnly();
 
     private Bill(
         BillId id,
@@ -57,7 +59,8 @@ public sealed class Bill
         PhoneNumber splitterPhoneNumber,
         DateTimeOffset createdAt,
         BillStatus status,
-        IEnumerable<Participant> participants)
+        IEnumerable<Participant> participants,
+        IEnumerable<BillItem>? items = null)
     {
         if (id.Value == Guid.Empty)
         {
@@ -74,6 +77,10 @@ public sealed class Bill
         {
             bill._participants.AddRange(participants);
         }
+        if (items is not null)
+        {
+            bill._items.AddRange(items);
+        }
         return bill;
     }
 
@@ -89,5 +96,29 @@ public sealed class Bill
         var participant = Participant.Create(Id, phoneNumber, now);
         _participants.Add(participant);
         return participant;
+    }
+
+    public BillItem AddItem(
+        string description,
+        int quantity,
+        decimal amount,
+        IEnumerable<ParticipantId> sharerParticipantIds)
+    {
+        ArgumentNullException.ThrowIfNull(sharerParticipantIds);
+
+        var sharerList = sharerParticipantIds.ToList();
+
+        // Enforce invariant: Every sharer MUST belong to THIS bill!
+        foreach (var sharerId in sharerList)
+        {
+            if (!_participants.Any(p => p.Id == sharerId))
+            {
+                throw new ArgumentException($"Participant '{sharerId}' does not belong to bill '{Id}'.", nameof(sharerParticipantIds));
+            }
+        }
+
+        var item = BillItem.Create(Id, description, quantity, amount, sharerList);
+        _items.Add(item);
+        return item;
     }
 }

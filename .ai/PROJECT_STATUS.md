@@ -28,16 +28,19 @@ Domain ← Application ← Infrastructure ← API
 
 OTP-based + JWT Access Token authentication.
 
-Bill & Participant Domain Foundation:
-- `Bill` aggregate: `Id`, `Title`, `SplitterPhoneNumber`, `CreatedAt`, `Status`, `Participants`
+Bill, Participant & Items Domain:
+- `Bill` aggregate: `Id`, `Title`, `SplitterPhoneNumber`, `CreatedAt`, `Status`, `Participants`, `Items`
 - Splitter automatically added as initial participant
 - Duplicate participant phone numbers rejected within a bill
-- Database persistence: `Bills` and `BillParticipants` tables with unique index on `(BillId, PhoneNumber)`
+- `BillItem`: `Id`, `BillId`, `Description`, `Quantity` (>0), `Amount` (>0 exact decimal total line-item amount), `SharerParticipantIds` (one or more unique `ParticipantId`s belonging to the same bill)
+- Per-person split calculation is NOT implemented yet
+- Database persistence: `Bills`, `BillParticipants`, `BillItems`, and `BillItemSharers` tables
 - Endpoints:
   - `POST /auth/otp/request` → `202 Accepted`
   - `POST /auth/otp/verify` → `200 OK` (`accessToken`)
   - `POST /bills` → `201 Created` (Requires JWT auth, uses token `sub` for splitter identity)
   - `POST /bills/{billId}/participants` → `200 OK` (Requires JWT auth, caller must be bill member)
+  - `POST /bills/{billId}/items` → `201 Created` (Requires JWT auth, caller must be authenticated splitter)
 
 ## Persistence
 
@@ -45,6 +48,8 @@ Bill & Participant Domain Foundation:
 - `OtpChallenges`
 - `Bills`
 - `BillParticipants`
+- `BillItems`
+- `BillItemSharers`
 
 - SQL Server + EF Core. Repositories in `Infrastructure`.
 - Application contracts: `IOtpChallengeRepository`, `IBillRepository`
@@ -59,13 +64,14 @@ Bill & Participant Domain Foundation:
 - **1.5** Authentication API Boundary — COMPLETE
 - **1.6** Access Token Issuance — COMPLETE
 - **1.7** Bill & Participant Domain Foundation — COMPLETE
+- **1.8** Bill Items & Sharer Definitions — COMPLETE
 
 ## Current Milestone
 
-**1.8** — see `CURRENT_TASK.md` for objective.
+**1.9** — see `CURRENT_TASK.md` for objective.
 
 ## Not Yet Implemented
 
-Bill items, item splitting, Largest Remainder Method, OCR pipeline, participant link access tokens, payment tracking, UPI link generation, settlement.
+Largest Remainder Method (split calculation engine), OCR pipeline, participant link access tokens, payment tracking, UPI link generation, settlement.
 
 Do not expand into these areas unless explicitly instructed.

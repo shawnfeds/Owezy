@@ -19,4 +19,5 @@ public sealed class BillRow
     public DateTimeOffset CreatedAt { get; set; }
 
     public ICollection<BillParticipantRow> Participants { get; set; } = new List<BillParticipantRow>();
+    public ICollection<BillItemRow> Items { get; set; } = new List<BillItemRow>();
 }

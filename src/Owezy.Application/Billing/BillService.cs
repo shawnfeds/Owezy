@@ -75,4 +75,48 @@ public sealed class BillService : IBillService
             participant.JoinedAt
         );
     }
+
+    public async Task<AddBillItemResult> AddBillItemAsync(
+        PhoneNumber callerPhoneNumber,
+        AddBillItemRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(callerPhoneNumber);
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request.BillId.Value == Guid.Empty)
+        {
+            throw new ArgumentException("BillId cannot be empty.", nameof(request));
+        }
+
+        var bill = await _billRepository.GetByIdAsync(request.BillId, cancellationToken);
+        if (bill is null)
+        {
+            throw new KeyNotFoundException($"Bill with ID '{request.BillId}' was not found.");
+        }
+
+        // Section 24 API Ownership: Only the authenticated splitter can add items to the bill
+        if (bill.SplitterPhoneNumber != callerPhoneNumber)
+        {
+            throw new UnauthorizedAccessException("Only the bill splitter can add items to the bill.");
+        }
+
+        var item = bill.AddItem(
+            request.Description,
+            request.Quantity,
+            request.Amount,
+            request.SharerParticipantIds
+        );
+
+        await _billRepository.UpdateAsync(bill, cancellationToken);
+
+        return new AddBillItemResult(
+            item.Id,
+            item.BillId,
+            item.Description,
+            item.Quantity,
+            item.Amount,
+            item.SharerParticipantIds
+        );
+    }
 }

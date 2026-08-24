@@ -19,6 +19,9 @@ public static class BillEndpoints
         group.MapPost("/{billId}/participants", HandleAddParticipantAsync)
             .WithName("AddParticipant");
 
+        group.MapPost("/{billId}/items", HandleAddBillItemAsync)
+            .WithName("AddBillItem");
+
         return app;
     }
 
@@ -133,6 +136,97 @@ public static class BillEndpoints
         );
 
         return Results.Ok(response);
+    }
+
+    private static async Task<IResult> HandleAddBillItemAsync(
+        string billId,
+        AddBillItemHttpRequest httpRequest,
+        ClaimsPrincipal user,
+        IBillService billService,
+        CancellationToken cancellationToken)
+    {
+        var authenticatedPhone = GetAuthenticatedPhoneNumber(user);
+        if (authenticatedPhone is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        if (!Guid.TryParse(billId, out var billGuid))
+        {
+            return Results.BadRequest(new ApiError("invalid_bill_id", "billId must be a valid GUID."));
+        }
+
+        if (string.IsNullOrWhiteSpace(httpRequest.Description))
+        {
+            return Results.BadRequest(new ApiError("invalid_request", "Description is required."));
+        }
+
+        if (httpRequest.Quantity <= 0)
+        {
+            return Results.BadRequest(new ApiError("invalid_quantity", "Quantity must be greater than zero."));
+        }
+
+        if (httpRequest.Amount <= 0m)
+        {
+            return Results.BadRequest(new ApiError("invalid_amount", "Amount must be greater than zero."));
+        }
+
+        if (httpRequest.SharerParticipantIds is null || httpRequest.SharerParticipantIds.Count == 0)
+        {
+            return Results.BadRequest(new ApiError("missing_sharers", "At least one sharer participant ID is required."));
+        }
+
+        var sharerGuids = new List<ParticipantId>();
+        foreach (var idStr in httpRequest.SharerParticipantIds)
+        {
+            if (!Guid.TryParse(idStr, out var sharerGuid))
+            {
+                return Results.BadRequest(new ApiError("invalid_participant_id", $"Sharer participant ID '{idStr}' is not a valid GUID."));
+            }
+            sharerGuids.Add(new ParticipantId(sharerGuid));
+        }
+
+        AddBillItemResult result;
+        try
+        {
+            result = await billService.AddBillItemAsync(
+                authenticatedPhone,
+                new AddBillItemRequest(
+                    new BillId(billGuid),
+                    httpRequest.Description,
+                    httpRequest.Quantity,
+                    httpRequest.Amount,
+                    sharerGuids
+                ),
+                cancellationToken);
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound(new ApiError("bill_not_found", "The specified bill was not found."));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Results.Json(new ApiError("unauthorized", ex.Message), statusCode: 403);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(new ApiError("invalid_request", ex.Message));
+        }
+        catch (Exception)
+        {
+            return Results.Problem("An error occurred while adding the item to the bill.", statusCode: 500);
+        }
+
+        var response = new AddBillItemHttpResponse(
+            result.ItemId.Value.ToString(),
+            result.BillId.Value.ToString(),
+            result.Description,
+            result.Quantity,
+            result.Amount,
+            result.SharerParticipantIds.Select(s => s.Value.ToString()).ToList()
+        );
+
+        return Results.Created($"/bills/{result.BillId.Value}/items/{result.ItemId.Value}", response);
     }
 
     private static PhoneNumber? GetAuthenticatedPhoneNumber(ClaimsPrincipal user)

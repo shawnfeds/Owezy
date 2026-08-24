@@ -18,6 +18,8 @@ public sealed class SqlBillRepository : IBillRepository
     {
         var row = await _context.Bills
             .Include(b => b.Participants)
+            .Include(b => b.Items)
+                .ThenInclude(i => i.Sharers)
             .FirstOrDefaultAsync(b => b.Id == id.Value, cancellationToken);
 
         if (row is null)
@@ -43,6 +45,8 @@ public sealed class SqlBillRepository : IBillRepository
 
         var existingRow = await _context.Bills
             .Include(b => b.Participants)
+            .Include(b => b.Items)
+                .ThenInclude(i => i.Sharers)
             .FirstOrDefaultAsync(b => b.Id == bill.Id.Value, cancellationToken);
 
         if (existingRow is null)
@@ -68,6 +72,29 @@ public sealed class SqlBillRepository : IBillRepository
             }
         }
 
+        // Sync items
+        foreach (var item in bill.Items)
+        {
+            var existingItem = existingRow.Items.FirstOrDefault(i => i.Id == item.Id.Value);
+            if (existingItem is null)
+            {
+                var newItemRow = new BillItemRow
+                {
+                    Id = item.Id.Value,
+                    BillId = bill.Id.Value,
+                    Description = item.Description,
+                    Quantity = item.Quantity,
+                    Amount = item.Amount,
+                    Sharers = item.SharerParticipantIds.Select(s => new BillItemSharerRow
+                    {
+                        ItemId = item.Id.Value,
+                        ParticipantId = s.Value
+                    }).ToList()
+                };
+                existingRow.Items.Add(newItemRow);
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
     }
 
@@ -86,6 +113,19 @@ public sealed class SqlBillRepository : IBillRepository
                 BillId = bill.Id.Value,
                 PhoneNumber = p.PhoneNumber.Value,
                 JoinedAt = p.JoinedAt
+            }).ToList(),
+            Items = bill.Items.Select(i => new BillItemRow
+            {
+                Id = i.Id.Value,
+                BillId = bill.Id.Value,
+                Description = i.Description,
+                Quantity = i.Quantity,
+                Amount = i.Amount,
+                Sharers = i.SharerParticipantIds.Select(s => new BillItemSharerRow
+                {
+                    ItemId = i.Id.Value,
+                    ParticipantId = s.Value
+                }).ToList()
             }).ToList()
         };
     }
@@ -99,13 +139,23 @@ public sealed class SqlBillRepository : IBillRepository
             p.JoinedAt
         ));
 
+        var items = row.Items.Select(i => BillItem.Reconstitute(
+            new BillItemId(i.Id),
+            new BillId(i.BillId),
+            i.Description,
+            i.Quantity,
+            i.Amount,
+            i.Sharers.Select(s => new ParticipantId(s.ParticipantId))
+        ));
+
         return Bill.Reconstitute(
             new BillId(row.Id),
             row.Title,
             PhoneNumber.Create(row.SplitterPhoneNumber),
             row.CreatedAt,
             (BillStatus)row.Status,
-            participants
+            participants,
+            items
         );
     }
 }

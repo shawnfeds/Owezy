@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Owezy.Api.Auth;
@@ -42,7 +41,7 @@ public class BillApiTests : IClassFixture<WebApplicationFactory<Program>>
 
     private class TestDateTimeProvider : IDateTimeProvider
     {
-        public DateTimeOffset UtcNow { get; set; } = new(2026, 8, 24, 15, 0, 0, TimeSpan.Zero);
+        public DateTimeOffset UtcNow { get; set; } = DateTimeOffset.UtcNow;
     }
 
     private const string TestJwtKey = "api-test-jwt-signing-secret-key-32chars-long-12345";
@@ -54,6 +53,10 @@ public class BillApiTests : IClassFixture<WebApplicationFactory<Program>>
     {
         _factory = factory.WithWebHostBuilder(builder =>
         {
+            builder.UseSetting("Jwt:SigningKey", TestJwtKey);
+            builder.UseSetting("Jwt:Issuer", "Owezy.Api");
+            builder.UseSetting("Jwt:Audience", "Owezy.App");
+
             builder.ConfigureServices(services =>
             {
                 services.AddSingleton<IBillRepository, InMemoryBillRepository>();

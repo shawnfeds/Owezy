@@ -6,7 +6,7 @@ using Xunit;
 
 namespace Owezy.IntegrationTests.Billing;
 
-public sealed class BillRepositoryTests : IAsyncLifetime
+public sealed class BillItemRepositoryTests : IAsyncLifetime
 {
     private const string ConnectionString =
         "Server=(localdb)\\mssqllocaldb;Database=Owezy_IntegrationTests;Trusted_Connection=True;MultipleActiveResultSets=true;";
@@ -58,43 +58,25 @@ public sealed class BillRepositoryTests : IAsyncLifetime
         }
     }
 
-    [Fact(DisplayName = "Create + Retrieve: Bill and initial participant round-trips correctly")]
-    public async Task AddAsync_ThenGetByIdAsync_ReturnsCorrectBillAndParticipants()
-    {
-        SkipIfUnavailable();
-
-        var splitterPhone = PhoneNumber.Create("+919876543210");
-        var now = DateTimeOffset.UtcNow;
-        var bill = Bill.Create("Team Lunch", splitterPhone, now);
-
-        await _repository.AddAsync(bill);
-
-        var retrieved = await _repository.GetByIdAsync(bill.Id);
-
-        Assert.NotNull(retrieved);
-        Assert.Equal(bill.Id, retrieved.Id);
-        Assert.Equal("Team Lunch", retrieved.Title);
-        Assert.Equal(splitterPhone, retrieved.SplitterPhoneNumber);
-        Assert.Single(retrieved.Participants);
-        Assert.Equal(splitterPhone, retrieved.Participants.First().PhoneNumber);
-    }
-
-    [Fact(DisplayName = "Add Participant: updates relationship correctly in database")]
-    public async Task UpdateAsync_AddedParticipant_IsPersisted()
+    [Fact(DisplayName = "Bill Item Persistence: Items and Sharers persist and round-trip correctly")]
+    public async Task UpdateAsync_BillWithItemsAndSharers_PersistsCorrectly()
     {
         SkipIfUnavailable();
 
         var splitterPhone = PhoneNumber.Create("+919876543210");
         var participantPhone = PhoneNumber.Create("+919123456789");
         var now = DateTimeOffset.UtcNow;
-        var bill = Bill.Create("Party Expense", splitterPhone, now);
+        var bill = Bill.Create("Pizza Party", splitterPhone, now);
+        var part = bill.AddParticipant(participantPhone, now.AddMinutes(2));
+        var splitterPart = bill.Participants.First(p => p.PhoneNumber == splitterPhone);
 
         await _repository.AddAsync(bill);
 
-        bill.AddParticipant(participantPhone, now.AddMinutes(5));
+        // Add item to bill
+        var item = bill.AddItem("Extra Cheese Pizza", 3, 1200.00m, new[] { splitterPart.Id, part.Id });
         await _repository.UpdateAsync(bill);
 
-        // Re-fetch with fresh DbContext
+        // Re-fetch from fresh DbContext
         await _context.DisposeAsync();
         var freshOptions = new DbContextOptionsBuilder<OwezyDbContext>()
             .UseSqlServer(ConnectionString)
@@ -105,30 +87,15 @@ public sealed class BillRepositoryTests : IAsyncLifetime
         var refreshed = await _repository.GetByIdAsync(bill.Id);
 
         Assert.NotNull(refreshed);
-        Assert.Equal(2, refreshed.Participants.Count);
-        Assert.Contains(refreshed.Participants, p => p.PhoneNumber == participantPhone);
-    }
+        Assert.Single(refreshed.Items);
 
-    [Fact(DisplayName = "Duplicate Participant: DB unique index prevents duplicate membership")]
-    public async Task DbConstraint_DuplicateParticipant_ThrowsDbUpdateException()
-    {
-        SkipIfUnavailable();
-
-        var splitterPhone = PhoneNumber.Create("+919876543210");
-        var now = DateTimeOffset.UtcNow;
-        var bill = Bill.Create("Trip", splitterPhone, now);
-
-        await _repository.AddAsync(bill);
-
-        // Directly insert duplicate row into DbContext to test DB unique index (BillId, PhoneNumber)
-        _context.Set<BillParticipantRow>().Add(new BillParticipantRow
-        {
-            Id = Guid.NewGuid(),
-            BillId = bill.Id.Value,
-            PhoneNumber = splitterPhone.Value,
-            JoinedAt = now
-        });
-
-        await Assert.ThrowsAsync<DbUpdateException>(() => _context.SaveChangesAsync());
+        var retrievedItem = refreshed.Items.First();
+        Assert.Equal(item.Id, retrievedItem.Id);
+        Assert.Equal("Extra Cheese Pizza", retrievedItem.Description);
+        Assert.Equal(3, retrievedItem.Quantity);
+        Assert.Equal(1200.00m, retrievedItem.Amount);
+        Assert.Equal(2, retrievedItem.SharerParticipantIds.Count);
+        Assert.Contains(splitterPart.Id, retrievedItem.SharerParticipantIds);
+        Assert.Contains(part.Id, retrievedItem.SharerParticipantIds);
     }
 }

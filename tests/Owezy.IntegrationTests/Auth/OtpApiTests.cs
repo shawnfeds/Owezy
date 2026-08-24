@@ -49,6 +49,10 @@ public class OtpApiTests : IClassFixture<WebApplicationFactory<Program>>
     {
         _factory = factory.WithWebHostBuilder(builder =>
         {
+            builder.UseSetting("Jwt:SigningKey", TestJwtKey);
+            builder.UseSetting("Jwt:Issuer", "Owezy.Api.Test");
+            builder.UseSetting("Jwt:Audience", "Owezy.App.Test");
+
             builder.ConfigureServices(services =>
             {
                 // Replace Infrastructure repository, time provider, and JWT options with test doubles

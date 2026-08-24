@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Owezy.Application.Auth;
 using Owezy.Application.Billing;
@@ -42,11 +43,8 @@ public static class ServiceRegistration
         services.AddSingleton<IOtpGenerator, SecureOtpGenerator>();
 
         // JWT Access Token options & service
-        var jwtOptions = configuration
-            .GetSection(JwtOptions.Position)
-            .Get<JwtOptions>() ?? new JwtOptions();
-
-        services.AddSingleton(jwtOptions);
+        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.Position));
+        services.AddSingleton(sp => sp.GetRequiredService<IOptions<JwtOptions>>().Value);
         services.AddSingleton<IAccessTokenService, JwtAccessTokenService>();
 
         // SMS provider: development only for this milestone
@@ -65,34 +63,28 @@ public static class ServiceRegistration
     {
         services.AddAuthorization();
 
-        var jwtOptions = configuration
-            .GetSection(JwtOptions.Position)
-            .Get<JwtOptions>();
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer();
 
-        var signingKey = jwtOptions?.SigningKey;
-        if (!string.IsNullOrWhiteSpace(signingKey) && signingKey.Length >= 32)
-        {
-            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                .AddJwtBearer(options =>
+        services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+            .Configure<IOptions<JwtOptions>>((bearerOptions, jwtOptionsAcc) =>
+            {
+                var jwtOptions = jwtOptionsAcc.Value;
+                if (!string.IsNullOrWhiteSpace(jwtOptions.SigningKey) && jwtOptions.SigningKey.Length >= 32)
                 {
-                    options.TokenValidationParameters = new TokenValidationParameters
+                    bearerOptions.TokenValidationParameters = new TokenValidationParameters
                     {
                         ValidateIssuer = true,
-                        ValidIssuer = jwtOptions!.Issuer,
+                        ValidIssuer = jwtOptions.Issuer,
                         ValidateAudience = true,
                         ValidAudience = jwtOptions.Audience,
                         ValidateLifetime = true,
                         ValidateIssuerSigningKey = true,
-                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
                         ClockSkew = TimeSpan.Zero
                     };
-                });
-        }
-        else
-        {
-            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                .AddJwtBearer();
-        }
+                }
+            });
 
         return services;
     }

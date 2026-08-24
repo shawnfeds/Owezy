@@ -1,42 +1,42 @@
-# Handoff — Milestone 1.7 Complete
+# Handoff — Milestone 1.8 Complete
 
 ## Current State
 
-Milestone 1.7 (Bill & Participant Domain Foundation) is complete.
+Milestone 1.8 (Bill Items & Sharer Definitions) is complete.
 
 ## Capabilities Implemented
 
-- `Bill` aggregate (`Owezy.Domain.Billing`):
-  - Invariants: Non-empty title, valid `BillId`, `SplitterPhoneNumber`.
-  - Splitter automatically added as initial participant.
-  - `AddParticipant`: prevents duplicate participant phone numbers within a bill.
+- `BillItem` entity & `Bill` aggregate updates (`Owezy.Domain.Billing`):
+  - Invariants: Non-empty description, positive `Quantity` (>0), positive `Amount` (>0 decimal total line-item amount), one or more unique sharer `ParticipantId`s.
+  - Cross-bill participant IDs rejected when defining item sharers.
+  - Duplicate sharer IDs within an item rejected.
+  - Splitter can be included as an item sharer.
 - `IBillService` / `BillService` (`Owezy.Application.Billing`):
-  - `CreateBillAsync`: Splitter identity enforced from authentication context.
-  - `AddParticipantAsync`: Enforces that caller must be a member of the bill.
+  - `AddBillItemAsync`: Only authenticated splitter can add items to the bill.
 - Persistence (`Owezy.Infrastructure.Persistence`):
-  - Tables `Bills` and `BillParticipants`.
-  - Unique index `(BillId, PhoneNumber)` on `BillParticipants` table.
-  - Migration `AddBillAndParticipantTables` applied.
+  - Tables `BillItems` and `BillItemSharers`.
+  - Migration `AddBillItemsAndSharersTables` generated.
+  - Relationship `Bill` 1:N `BillItems`, `BillItem` M:N `BillParticipants` via `BillItemSharers`.
 - API (`Owezy.Api.Billing`):
-  - `POST /bills` (protected by JWT, reads splitter identity from token `sub` / `phone_number` claim).
-  - `POST /bills/{billId}/participants` (protected by JWT, caller must be member).
+  - `POST /bills/{billId}/items` (protected by JWT, only authenticated splitter can add items).
 
 ## Verification
 
 | Check | Result |
 |---|---|
 | Build | PASS |
-| Unit tests | 69/69 |
+| Unit tests | 80/80 |
 | Architecture tests | 4/4 |
-| Integration & API tests | 15/15 |
+| Integration & API tests | 27/27 |
 | Working tree | CLEAN (after commit) |
 
 ## Security & Scope Boundary
 
-- Splitter identity MUST come from JWT authentication token (client body cannot specify splitter).
-- Database enforces unique participant constraint per bill.
-- No item, payment, OCR, or settlement tables exist.
+- Only authenticated splitter can add items to a bill.
+- Cross-bill participant IDs cannot escape bill boundaries.
+- No per-person split calculation, Largest Remainder algorithm, or rounding implemented yet.
+- No OCR, receipt storage, payment tracking, settlement, or sharing links exist.
 
 ## Next
 
-Milestone 1.8. Do not implement until explicitly instructed.
+Milestone 1.9 (Largest Remainder Calculation Engine). Do not implement until explicitly instructed.
