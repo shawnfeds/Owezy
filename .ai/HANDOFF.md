@@ -1,38 +1,42 @@
-# Handoff — Milestone 1.6 Complete
+# Handoff — Milestone 1.7 Complete
 
 ## Current State
 
-Milestone 1.6 (Access Token Issuance) is complete.
+Milestone 1.7 (Bill & Participant Domain Foundation) is complete.
 
 ## Capabilities Implemented
 
-- `IAccessTokenService` / `JwtAccessTokenService`:
-  - Generates short-lived (configurable default: 15 mins) HMAC-SHA-256 JWT access tokens.
-  - Token claims: `sub` (canonical phone number), `phone_number`, `jti`, `iss`, `aud`.
-  - External configuration model: `JwtOptions` (`SigningKey`, `Issuer`, `Audience`, `AccessTokenLifetimeMinutes`).
-  - Strict security validation: fails fast if `SigningKey` is missing or < 32 characters.
-- `POST /auth/otp/verify`:
-  - Upon successful OTP verification, issues JWT access token.
-  - Response body: `{ "accessToken": "<JWT>", "tokenType": "Bearer", "expiresAt": "<timestamp>" }`
-- ASP.NET Core JWT Bearer authentication registered in `ServiceRegistration.cs` with full signature, issuer, audience, and lifetime validation enabled.
+- `Bill` aggregate (`Owezy.Domain.Billing`):
+  - Invariants: Non-empty title, valid `BillId`, `SplitterPhoneNumber`.
+  - Splitter automatically added as initial participant.
+  - `AddParticipant`: prevents duplicate participant phone numbers within a bill.
+- `IBillService` / `BillService` (`Owezy.Application.Billing`):
+  - `CreateBillAsync`: Splitter identity enforced from authentication context.
+  - `AddParticipantAsync`: Enforces that caller must be a member of the bill.
+- Persistence (`Owezy.Infrastructure.Persistence`):
+  - Tables `Bills` and `BillParticipants`.
+  - Unique index `(BillId, PhoneNumber)` on `BillParticipants` table.
+  - Migration `AddBillAndParticipantTables` applied.
+- API (`Owezy.Api.Billing`):
+  - `POST /bills` (protected by JWT, reads splitter identity from token `sub` / `phone_number` claim).
+  - `POST /bills/{billId}/participants` (protected by JWT, caller must be member).
 
 ## Verification
 
 | Check | Result |
 |---|---|
 | Build | PASS |
-| Unit tests | 61/61 |
+| Unit tests | 69/69 |
 | Architecture tests | 4/4 |
 | Integration & API tests | 15/15 |
 | Working tree | CLEAN (after commit) |
 
 ## Security & Scope Boundary
 
-- Signing secret is external configuration only. No fallback secret exists in source code or configuration files.
-- OTP, OTP hash, and HMAC secret are NEVER included in tokens or HTTP responses.
-- Access token is not logged.
-- Refresh tokens are NOT implemented.
+- Splitter identity MUST come from JWT authentication token (client body cannot specify splitter).
+- Database enforces unique participant constraint per bill.
+- No item, payment, OCR, or settlement tables exist.
 
 ## Next
 
-Milestone 1.7. Do not implement until explicitly instructed.
+Milestone 1.8. Do not implement until explicitly instructed.

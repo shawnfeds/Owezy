@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Owezy.Application.Auth;
+using Owezy.Application.Billing;
 using Owezy.Application.Common;
 using Owezy.Infrastructure.Persistence;
 
@@ -20,6 +21,7 @@ public static class ServiceRegistration
             options.UseSqlServer(connectionString));
 
         services.AddScoped<IOtpChallengeRepository, SqlOtpChallengeRepository>();
+        services.AddScoped<IBillRepository, SqlBillRepository>();
 
         return services;
     }
@@ -50,8 +52,9 @@ public static class ServiceRegistration
         // SMS provider: development only for this milestone
         services.AddSingleton<ISmsProvider, DevelopmentSmsProvider>();
 
-        // Application service
+        // Application services
         services.AddScoped<IOtpService, OtpService>();
+        services.AddScoped<IBillService, BillService>();
 
         return services;
     }

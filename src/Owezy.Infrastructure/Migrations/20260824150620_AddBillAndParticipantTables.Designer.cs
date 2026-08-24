@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Owezy.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using Owezy.Infrastructure.Persistence;
 namespace Owezy.Infrastructure.Migrations
 {
     [DbContext(typeof(OwezyDbContext))]
-    partial class OwezyDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260824150620_AddBillAndParticipantTables")]
+    partial class AddBillAndParticipantTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

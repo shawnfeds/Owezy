@@ -24,38 +24,31 @@ Domain ← Application ← Infrastructure ← API
 - Entity Framework Core
 - SQL Server
 
-## Authentication
+## Authentication & Bill Domain
 
 OTP-based + JWT Access Token authentication.
 
-Current OTP & JWT security, application workflow & HTTP API:
-- Cryptographically secure 6-digit OTP
-- 5-minute OTP expiration
-- Max 5 failed OTP attempts
-- HMAC-SHA-256 verifier with external HMAC secret
-- Constant-time OTP verifier comparison
-- Plaintext OTP never persisted or returned in HTTP responses
-- JWT Access Token authentication:
-  - Short-lived configurable lifetime (default: 15 mins)
-  - HMAC-SHA-256 token signing with external configuration key
-  - Claims: `sub` (canonical phone number), `phone_number`, `jti`, `iss`, `aud`
-  - Complete ASP.NET Core JWT Bearer validation (issuer, audience, signing key, lifetime)
-  - Refresh tokens are NOT implemented
-- Application workflow: `RequestOtpAsync`, `VerifyOtpAsync`, `GenerateAccessToken`
-- HTTP API Endpoints:
-  - `POST /auth/otp/request` → `202 Accepted` (`{ "challengeId": "..." }`)
-  - `POST /auth/otp/verify` → `200 OK` (`{ "accessToken": "...", "tokenType": "Bearer", "expiresAt": "..." }`)
+Bill & Participant Domain Foundation:
+- `Bill` aggregate: `Id`, `Title`, `SplitterPhoneNumber`, `CreatedAt`, `Status`, `Participants`
+- Splitter automatically added as initial participant
+- Duplicate participant phone numbers rejected within a bill
+- Database persistence: `Bills` and `BillParticipants` tables with unique index on `(BillId, PhoneNumber)`
+- Endpoints:
+  - `POST /auth/otp/request` → `202 Accepted`
+  - `POST /auth/otp/verify` → `200 OK` (`accessToken`)
+  - `POST /bills` → `201 Created` (Requires JWT auth, uses token `sub` for splitter identity)
+  - `POST /bills/{billId}/participants` → `200 OK` (Requires JWT auth, caller must be bill member)
 
 ## Persistence
 
-**Table**: `OtpChallenges`
+**Tables**:
+- `OtpChallenges`
+- `Bills`
+- `BillParticipants`
 
-Key fields: `Id`, `PhoneNumber`, `OtpHash`, `CreatedAt`, `ExpiresAt`, `RemainingAttempts`, `State`, `RowVersion`
-
-- SQL Server + EF Core. Repository in `Infrastructure`.
-- Application contract: `IOtpChallengeRepository`
-- Implementation: `SqlOtpChallengeRepository`
-- Concurrency: `rowversion` optimistic concurrency token.
+- SQL Server + EF Core. Repositories in `Infrastructure`.
+- Application contracts: `IOtpChallengeRepository`, `IBillRepository`
+- Implementations: `SqlOtpChallengeRepository`, `SqlBillRepository`
 
 ## Completed Milestones
 
@@ -65,13 +58,14 @@ Key fields: `Id`, `PhoneNumber`, `OtpHash`, `CreatedAt`, `ExpiresAt`, `Remaining
 - **1.4** OTP Authentication Workflow — COMPLETE
 - **1.5** Authentication API Boundary — COMPLETE
 - **1.6** Access Token Issuance — COMPLETE
+- **1.7** Bill & Participant Domain Foundation — COMPLETE
 
 ## Current Milestone
 
-**1.7** — see `CURRENT_TASK.md` for objective.
+**1.8** — see `CURRENT_TASK.md` for objective.
 
 ## Not Yet Implemented
 
-Refresh tokens, token revocation, authorization policies/roles, user profiles, bill management, OCR, splitting engine, participant sharing, payments.
+Bill items, item splitting, Largest Remainder Method, OCR pipeline, participant link access tokens, payment tracking, UPI link generation, settlement.
 
 Do not expand into these areas unless explicitly instructed.
