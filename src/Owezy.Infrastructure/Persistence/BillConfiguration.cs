@@ -26,6 +26,10 @@ internal sealed class BillConfiguration : IEntityTypeConfiguration<BillRow>
         builder.Property(b => b.CreatedAt)
             .IsRequired();
 
+        builder.Property(b => b.FinalizedAt)
+            .IsRequired(false);
+
+
         builder.HasMany(b => b.Participants)
             .WithOne(p => p.Bill)
             .HasForeignKey(p => p.BillId)

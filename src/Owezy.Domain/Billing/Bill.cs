@@ -12,6 +12,10 @@ public sealed class Bill
     public PhoneNumber SplitterPhoneNumber { get; }
     public DateTimeOffset CreatedAt { get; }
     public BillStatus Status { get; private set; }
+    public DateTimeOffset? FinalizedAt { get; private set; }
+
+    public bool IsOpen => Status == BillStatus.Active;
+    public bool IsFinalized => Status == BillStatus.Finalized;
 
     public IReadOnlyCollection<Participant> Participants => _participants.AsReadOnly();
     public IReadOnlyCollection<BillItem> Items => _items.AsReadOnly();
@@ -21,13 +25,15 @@ public sealed class Bill
         string title,
         PhoneNumber splitterPhoneNumber,
         DateTimeOffset createdAt,
-        BillStatus status)
+        BillStatus status,
+        DateTimeOffset? finalizedAt = null)
     {
         Id = id;
         Title = title;
         SplitterPhoneNumber = splitterPhoneNumber;
         CreatedAt = createdAt;
         Status = status;
+        FinalizedAt = finalizedAt;
     }
 
     public static Bill Create(string title, PhoneNumber splitterPhoneNumber, DateTimeOffset now)
@@ -60,7 +66,8 @@ public sealed class Bill
         DateTimeOffset createdAt,
         BillStatus status,
         IEnumerable<Participant> participants,
-        IEnumerable<BillItem>? items = null)
+        IEnumerable<BillItem>? items = null,
+        DateTimeOffset? finalizedAt = null)
     {
         if (id.Value == Guid.Empty)
         {
@@ -72,7 +79,7 @@ public sealed class Bill
         }
         ArgumentNullException.ThrowIfNull(splitterPhoneNumber);
 
-        var bill = new Bill(id, title.Trim(), splitterPhoneNumber, createdAt, status);
+        var bill = new Bill(id, title.Trim(), splitterPhoneNumber, createdAt, status, finalizedAt);
         if (participants is not null)
         {
             bill._participants.AddRange(participants);
@@ -87,6 +94,11 @@ public sealed class Bill
     public Participant AddParticipant(PhoneNumber phoneNumber, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(phoneNumber);
+
+        if (IsFinalized)
+        {
+            throw new InvalidOperationException("Cannot add a participant to a finalized bill.");
+        }
 
         if (_participants.Any(p => p.PhoneNumber == phoneNumber))
         {
@@ -104,6 +116,11 @@ public sealed class Bill
         decimal amount,
         IEnumerable<ParticipantId> sharerParticipantIds)
     {
+        if (IsFinalized)
+        {
+            throw new InvalidOperationException("Cannot add an item to a finalized bill.");
+        }
+
         ArgumentNullException.ThrowIfNull(sharerParticipantIds);
 
         var sharerList = sharerParticipantIds.ToList();
@@ -120,5 +137,29 @@ public sealed class Bill
         var item = BillItem.Create(Id, description, quantity, amount, sharerList);
         _items.Add(item);
         return item;
+    }
+
+    /// <summary>
+    /// Finalizes the bill, making it permanently immutable.
+    /// Requires at least one participant beyond the splitter check is not needed —
+    /// the splitter is always a participant, so participants.Count >= 1 is always true.
+    /// Requires at least one item.
+    /// </summary>
+    public void Finalize(DateTimeOffset now)
+    {
+        if (IsFinalized)
+        {
+            throw new InvalidOperationException("Bill is already finalized.");
+        }
+
+        // Splitter is always a participant, so _participants.Count >= 1.
+        // Require at least one item as a product safeguard.
+        if (_items.Count == 0)
+        {
+            throw new InvalidOperationException("A bill must have at least one item before it can be finalized.");
+        }
+
+        Status = BillStatus.Finalized;
+        FinalizedAt = now;
     }
 }

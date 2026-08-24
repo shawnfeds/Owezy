@@ -22,6 +22,9 @@ public static class BillEndpoints
         group.MapPost("/{billId}/items", HandleAddBillItemAsync)
             .WithName("AddBillItem");
 
+        group.MapPost("/{billId}/finalize", HandleFinalizeBillAsync)
+            .WithName("FinalizeBill");
+
         return app;
     }
 
@@ -212,6 +215,10 @@ public static class BillEndpoints
         {
             return Results.BadRequest(new ApiError("invalid_request", ex.Message));
         }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Json(new ApiError("bill_finalized", ex.Message), statusCode: 409);
+        }
         catch (Exception)
         {
             return Results.Problem("An error occurred while adding the item to the bill.", statusCode: 500);
@@ -227,6 +234,58 @@ public static class BillEndpoints
         );
 
         return Results.Created($"/bills/{result.BillId.Value}/items/{result.ItemId.Value}", response);
+    }
+
+    private static async Task<IResult> HandleFinalizeBillAsync(
+        string billId,
+        ClaimsPrincipal user,
+        IBillService billService,
+        CancellationToken cancellationToken)
+    {
+        var authenticatedPhone = GetAuthenticatedPhoneNumber(user);
+        if (authenticatedPhone is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        if (!Guid.TryParse(billId, out var billGuid))
+        {
+            return Results.BadRequest(new ApiError("invalid_bill_id", "billId must be a valid GUID."));
+        }
+
+        FinalizeBillResult result;
+        try
+        {
+            result = await billService.FinalizeBillAsync(
+                authenticatedPhone,
+                new FinalizeBillRequest(new Domain.Billing.BillId(billGuid)),
+                cancellationToken);
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound(new ApiError("bill_not_found", "The specified bill was not found."));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Results.Json(new ApiError("unauthorized", ex.Message), statusCode: 403);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Json(new ApiError("bill_finalization_failed", ex.Message), statusCode: 409);
+        }
+        catch (Exception)
+        {
+            return Results.Problem("An error occurred while finalizing the bill.", statusCode: 500);
+        }
+
+        var response = new FinalizeBillHttpResponse(
+            result.BillId.Value.ToString(),
+            result.Title,
+            result.Status.ToString(),
+            result.FinalizedAt
+        );
+
+        return Results.Ok(response);
     }
 
     private static PhoneNumber? GetAuthenticatedPhoneNumber(ClaimsPrincipal user)

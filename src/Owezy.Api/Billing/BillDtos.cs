@@ -38,3 +38,10 @@ public sealed record AddBillItemHttpResponse(
     decimal Amount,
     List<string> SharerParticipantIds
 );
+
+public sealed record FinalizeBillHttpResponse(
+    string BillId,
+    string Title,
+    string Status,
+    DateTimeOffset? FinalizedAt
+);

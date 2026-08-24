@@ -10,11 +10,11 @@ Phase 2 — Bill Management & Item Splitting Core
 
 ## Objective
 
-Define and implement the next milestone (e.g. Bill Total / Summary Calculation or Participant Access Tokens) following completion of Authoritative Split Calculation Engine.
+Define and implement the next milestone following completion of Milestone 2.0 (Bill Lifecycle & Finalization).
 
 ## Completed Prerequisites
 
-Milestones 1.1 through 1.9 are complete.
+Milestones 1.1 through 2.0 are complete.
 
 ## Rule
 

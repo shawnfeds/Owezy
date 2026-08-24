@@ -17,6 +17,7 @@ public sealed class BillRow
     public string SplitterPhoneNumber { get; set; } = string.Empty;
     public int Status { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? FinalizedAt { get; set; }
 
     public ICollection<BillParticipantRow> Participants { get; set; } = new List<BillParticipantRow>();
     public ICollection<BillItemRow> Items { get; set; } = new List<BillItemRow>();

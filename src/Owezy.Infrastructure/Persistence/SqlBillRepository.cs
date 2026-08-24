@@ -56,6 +56,7 @@ public sealed class SqlBillRepository : IBillRepository
 
         existingRow.Title = bill.Title;
         existingRow.Status = (int)bill.Status;
+        existingRow.FinalizedAt = bill.FinalizedAt;
 
         // Sync participants
         foreach (var participant in bill.Participants)
@@ -107,6 +108,7 @@ public sealed class SqlBillRepository : IBillRepository
             SplitterPhoneNumber = bill.SplitterPhoneNumber.Value,
             Status = (int)bill.Status,
             CreatedAt = bill.CreatedAt,
+            FinalizedAt = bill.FinalizedAt,
             Participants = bill.Participants.Select(p => new BillParticipantRow
             {
                 Id = p.Id.Value,
@@ -155,7 +157,8 @@ public sealed class SqlBillRepository : IBillRepository
             row.CreatedAt,
             (BillStatus)row.Status,
             participants,
-            items
+            items,
+            row.FinalizedAt
         );
     }
 }

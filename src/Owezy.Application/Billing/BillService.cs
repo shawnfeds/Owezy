@@ -166,4 +166,42 @@ public sealed class BillService : IBillService
             shareResults
         );
     }
+
+    public async Task<FinalizeBillResult> FinalizeBillAsync(
+        PhoneNumber callerPhoneNumber,
+        FinalizeBillRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(callerPhoneNumber);
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request.BillId.Value == Guid.Empty)
+        {
+            throw new ArgumentException("BillId cannot be empty.", nameof(request));
+        }
+
+        var bill = await _billRepository.GetByIdAsync(request.BillId, cancellationToken);
+        if (bill is null)
+        {
+            throw new KeyNotFoundException($"Bill with ID '{request.BillId}' was not found.");
+        }
+
+        // Only the authenticated splitter can finalize
+        if (bill.SplitterPhoneNumber != callerPhoneNumber)
+        {
+            throw new UnauthorizedAccessException("Only the bill splitter can finalize the bill.");
+        }
+
+        var now = _dateTimeProvider.UtcNow;
+        bill.Finalize(now);
+
+        await _billRepository.UpdateAsync(bill, cancellationToken);
+
+        return new FinalizeBillResult(
+            bill.Id,
+            bill.Title,
+            bill.Status,
+            bill.FinalizedAt
+        );
+    }
 }

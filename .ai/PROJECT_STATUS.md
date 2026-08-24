@@ -28,13 +28,17 @@ Domain ← Application ← Infrastructure ← API
 
 OTP-based + JWT Access Token authentication.
 
-Bill, Participant, Items & Calculation Domain:
-- `Bill` aggregate: `Id`, `Title`, `SplitterPhoneNumber`, `CreatedAt`, `Status`, `Participants`, `Items`
+Bill, Participant, Items, Calculation & Lifecycle Domain:
+- `Bill` aggregate: `Id`, `Title`, `SplitterPhoneNumber`, `CreatedAt`, `Status` (`Active` / `Finalized`), `FinalizedAt`, `Participants`, `Items`
 - Splitter automatically added as initial participant
 - Duplicate participant phone numbers rejected within a bill
 - `BillItem`: `Id`, `BillId`, `Description`, `Quantity` (>0), `Amount` (>0 exact decimal total line-item amount), `SharerParticipantIds`
 - `EqualSplitCalculator`: Pure domain service implementing equal-share division with largest-remainder rounding and deterministic tie-breaking by `ParticipantId ASC`
 - Calculated shares are derived and NOT persisted
+- Bill Lifecycle (`OPEN` -> `FINALIZED`):
+  - An OPEN bill can receive new participants and items.
+  - Finalization requires at least one item.
+  - A FINALIZED bill is permanently immutable: adding participants/items returns 409 Conflict.
 - Database persistence: `Bills`, `BillParticipants`, `BillItems`, and `BillItemSharers` tables
 - Endpoints:
   - `POST /auth/otp/request` → `202 Accepted`
@@ -42,6 +46,7 @@ Bill, Participant, Items & Calculation Domain:
   - `POST /bills` → `201 Created` (Requires JWT auth, uses token `sub` for splitter identity)
   - `POST /bills/{billId}/participants` → `200 OK` (Requires JWT auth, caller must be bill member)
   - `POST /bills/{billId}/items` → `201 Created` (Requires JWT auth, caller must be authenticated splitter)
+  - `POST /bills/{billId}/finalize` → `200 OK` (Requires JWT auth, caller must be authenticated splitter)
 
 ## Persistence
 
@@ -67,6 +72,7 @@ Bill, Participant, Items & Calculation Domain:
 - **1.7** Bill & Participant Domain Foundation — COMPLETE
 - **1.8** Bill Items & Sharer Definitions — COMPLETE
 - **1.9** Authoritative Split Calculation Engine — COMPLETE
+- **2.0** Bill Lifecycle & Finalization — COMPLETE
 
 ## Current Milestone
 
