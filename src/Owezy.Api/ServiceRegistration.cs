@@ -1,4 +1,7 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Owezy.Application.Auth;
 using Owezy.Application.Common;
 using Owezy.Infrastructure.Persistence;
@@ -36,11 +39,57 @@ public static class ServiceRegistration
         services.AddSingleton<IOtpHasher>(_ => new HmacSha256OtpHasher(otpHasherOptions));
         services.AddSingleton<IOtpGenerator, SecureOtpGenerator>();
 
+        // JWT Access Token options & service
+        var jwtOptions = configuration
+            .GetSection(JwtOptions.Position)
+            .Get<JwtOptions>() ?? new JwtOptions();
+
+        services.AddSingleton(jwtOptions);
+        services.AddSingleton<IAccessTokenService, JwtAccessTokenService>();
+
         // SMS provider: development only for this milestone
         services.AddSingleton<ISmsProvider, DevelopmentSmsProvider>();
 
         // Application service
         services.AddScoped<IOtpService, OtpService>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddOwezyAuthentication(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.AddAuthorization();
+
+        var jwtOptions = configuration
+            .GetSection(JwtOptions.Position)
+            .Get<JwtOptions>();
+
+        var signingKey = jwtOptions?.SigningKey;
+        if (!string.IsNullOrWhiteSpace(signingKey) && signingKey.Length >= 32)
+        {
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidIssuer = jwtOptions!.Issuer,
+                        ValidateAudience = true,
+                        ValidAudience = jwtOptions.Audience,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
+                        ClockSkew = TimeSpan.Zero
+                    };
+                });
+        }
+        else
+        {
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer();
+        }
 
         return services;
     }

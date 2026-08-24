@@ -26,19 +26,25 @@ Domain ← Application ← Infrastructure ← API
 
 ## Authentication
 
-OTP-based. Phone → OTP → JWT (JWT not yet implemented).
+OTP-based + JWT Access Token authentication.
 
-Current OTP security, application workflow & HTTP API:
+Current OTP & JWT security, application workflow & HTTP API:
 - Cryptographically secure 6-digit OTP
-- 5-minute expiration
-- Max 5 failed attempts
+- 5-minute OTP expiration
+- Max 5 failed OTP attempts
 - HMAC-SHA-256 verifier with external HMAC secret
-- Constant-time verification
+- Constant-time OTP verifier comparison
 - Plaintext OTP never persisted or returned in HTTP responses
-- Application workflow: `RequestOtpAsync`, `VerifyOtpAsync`
+- JWT Access Token authentication:
+  - Short-lived configurable lifetime (default: 15 mins)
+  - HMAC-SHA-256 token signing with external configuration key
+  - Claims: `sub` (canonical phone number), `phone_number`, `jti`, `iss`, `aud`
+  - Complete ASP.NET Core JWT Bearer validation (issuer, audience, signing key, lifetime)
+  - Refresh tokens are NOT implemented
+- Application workflow: `RequestOtpAsync`, `VerifyOtpAsync`, `GenerateAccessToken`
 - HTTP API Endpoints:
   - `POST /auth/otp/request` → `202 Accepted` (`{ "challengeId": "..." }`)
-  - `POST /auth/otp/verify` → `200 OK` (`{ "phoneNumber": "..." }`)
+  - `POST /auth/otp/verify` → `200 OK` (`{ "accessToken": "...", "tokenType": "Bearer", "expiresAt": "..." }`)
 
 ## Persistence
 
@@ -58,13 +64,14 @@ Key fields: `Id`, `PhoneNumber`, `OtpHash`, `CreatedAt`, `ExpiresAt`, `Remaining
 - **1.3** OTP SQL Server Persistence — COMPLETE
 - **1.4** OTP Authentication Workflow — COMPLETE
 - **1.5** Authentication API Boundary — COMPLETE
+- **1.6** Access Token Issuance — COMPLETE
 
 ## Current Milestone
 
-**1.6** — see `CURRENT_TASK.md` for objective.
+**1.7** — see `CURRENT_TASK.md` for objective.
 
 ## Not Yet Implemented
 
-JWT, access tokens, refresh tokens, authentication middleware, authorization, production SMS, background cleanup, Redis, participant/bill/payment functionality.
+Refresh tokens, token revocation, authorization policies/roles, user profiles, bill management, OCR, splitting engine, participant sharing, payments.
 
 Do not expand into these areas unless explicitly instructed.

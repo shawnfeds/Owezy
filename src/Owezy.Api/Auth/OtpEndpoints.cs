@@ -59,6 +59,7 @@ public static class OtpEndpoints
     private static async Task<IResult> HandleVerifyOtpAsync(
         VerifyOtpHttpRequest httpRequest,
         IOtpService otpService,
+        IAccessTokenService accessTokenService,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(httpRequest.ChallengeId))
@@ -93,11 +94,18 @@ public static class OtpEndpoints
             return Results.Problem("An unexpected error occurred. Please try again.", statusCode: 500);
         }
 
+        if (result.Status == Domain.Auth.OtpVerificationResult.Success)
+        {
+            var tokenResult = accessTokenService.GenerateAccessToken(result.AuthenticatedPhoneNumber!);
+            return Results.Ok(new VerifyOtpHttpResponse(
+                tokenResult.AccessToken,
+                tokenResult.TokenType,
+                tokenResult.ExpiresAt
+            ));
+        }
+
         return result.Status switch
         {
-            Domain.Auth.OtpVerificationResult.Success =>
-                Results.Ok(new VerifyOtpHttpResponse(result.AuthenticatedPhoneNumber!.Value)),
-
             Domain.Auth.OtpVerificationResult.ChallengeNotFound =>
                 Results.NotFound(new ApiError("challenge_not_found", "The OTP challenge was not found.")),
 

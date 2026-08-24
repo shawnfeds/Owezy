@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -38,9 +39,10 @@ public class OtpApiTests : IClassFixture<WebApplicationFactory<Program>>
 
     private class TestDateTimeProvider : IDateTimeProvider
     {
-        public DateTimeOffset UtcNow { get; set; } = new(2026, 8, 23, 10, 0, 0, TimeSpan.Zero);
+        public DateTimeOffset UtcNow { get; set; } = new(2026, 8, 24, 10, 0, 0, TimeSpan.Zero);
     }
 
+    private const string TestJwtKey = "api-test-jwt-signing-secret-key-32chars-long-12345";
     private readonly WebApplicationFactory<Program> _factory;
 
     public OtpApiTests(WebApplicationFactory<Program> factory)
@@ -49,10 +51,20 @@ public class OtpApiTests : IClassFixture<WebApplicationFactory<Program>>
         {
             builder.ConfigureServices(services =>
             {
-                // Replace Infrastructure repository and time provider with in-memory test doubles for fast isolated API testing
+                // Replace Infrastructure repository, time provider, and JWT options with test doubles
                 services.AddSingleton<IOtpChallengeRepository, InMemoryOtpChallengeRepository>();
                 services.AddSingleton<IDateTimeProvider, TestDateTimeProvider>();
                 services.AddSingleton<IOtpHasher>(_ => new HmacSha256OtpHasher("api-test-secret-key-1234567890"));
+
+                var jwtOpts = new JwtOptions
+                {
+                    SigningKey = TestJwtKey,
+                    Issuer = "Owezy.Api.Test",
+                    Audience = "Owezy.App.Test",
+                    AccessTokenLifetimeMinutes = 15
+                };
+                services.AddSingleton(jwtOpts);
+                services.AddSingleton<IAccessTokenService, JwtAccessTokenService>();
             });
         });
     }
@@ -90,7 +102,7 @@ public class OtpApiTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task VerifyOtp_CorrectOtp_Returns200OKWithPhoneNumber()
+    public async Task VerifyOtp_CorrectOtp_Returns200OKWithAccessToken()
     {
         var client = _factory.CreateClient();
 
@@ -112,11 +124,18 @@ public class OtpApiTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Equal(HttpStatusCode.OK, verifyResponse.StatusCode);
         var verifyData = await verifyResponse.Content.ReadFromJsonAsync<VerifyOtpHttpResponse>();
         Assert.NotNull(verifyData);
-        Assert.Equal("+919876543210", verifyData.PhoneNumber);
+        Assert.False(string.IsNullOrWhiteSpace(verifyData.AccessToken));
+        Assert.Equal("Bearer", verifyData.TokenType);
+
+        // Validate returned JWT token contents
+        var handler = new JwtSecurityTokenHandler();
+        var jwt = handler.ReadJwtToken(verifyData.AccessToken);
+        Assert.Equal("+919876543210", jwt.Subject);
+        Assert.Equal("Owezy.Api.Test", jwt.Issuer);
     }
 
     [Fact]
-    public async Task VerifyOtp_IncorrectOtp_Returns401Unauthorized()
+    public async Task VerifyOtp_IncorrectOtp_Returns401UnauthorizedWithoutAccessToken()
     {
         var client = _factory.CreateClient();
         var reqResponse = await client.PostAsJsonAsync("/auth/otp/request", new { phoneNumber = "+919876543210" });
@@ -125,7 +144,11 @@ public class OtpApiTests : IClassFixture<WebApplicationFactory<Program>>
         var verifyResponse = await client.PostAsJsonAsync("/auth/otp/verify", new { challengeId = reqData!.ChallengeId, otp = "000000" });
 
         Assert.Equal(HttpStatusCode.Unauthorized, verifyResponse.StatusCode);
-        var err = await verifyResponse.Content.ReadFromJsonAsync<ApiError>();
+
+        var responseBody = await verifyResponse.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("accessToken", responseBody, StringComparison.OrdinalIgnoreCase);
+
+        var err = JsonSerializer.Deserialize<ApiError>(responseBody, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         Assert.Equal("invalid_otp", err!.Code);
     }
 
