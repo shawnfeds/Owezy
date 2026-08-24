@@ -110,6 +110,26 @@ public class BillLifecycleTests
     }
 
     [Fact]
+    public void Bill_WithZeroParticipants_CannotFinalize()
+    {
+        var billId = BillId.New();
+        var sharerId = ParticipantId.New();
+        var item = BillItem.Reconstitute(BillItemId.New(), billId, "Pizza", 1, 500.00m, new[] { sharerId });
+        var bill = Bill.Reconstitute(
+            billId,
+            "Reconstituted Bill",
+            _splitterPhone,
+            _now,
+            BillStatus.Active,
+            participants: Array.Empty<Participant>(),
+            items: new[] { item }
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() => bill.Finalize(_now.AddMinutes(5)));
+        Assert.Contains("participant", ex.Message.ToLowerInvariant());
+    }
+
+    [Fact]
     public void FinalizedBill_StatusStaysFinalized()
     {
         var bill = CreateBillWithItem();

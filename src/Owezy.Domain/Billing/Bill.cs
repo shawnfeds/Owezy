@@ -141,9 +141,7 @@ public sealed class Bill
 
     /// <summary>
     /// Finalizes the bill, making it permanently immutable.
-    /// Requires at least one participant beyond the splitter check is not needed —
-    /// the splitter is always a participant, so participants.Count >= 1 is always true.
-    /// Requires at least one item.
+    /// Requires at least one participant and at least one item.
     /// </summary>
     public void Finalize(DateTimeOffset now)
     {
@@ -152,8 +150,11 @@ public sealed class Bill
             throw new InvalidOperationException("Bill is already finalized.");
         }
 
-        // Splitter is always a participant, so _participants.Count >= 1.
-        // Require at least one item as a product safeguard.
+        if (_participants.Count == 0)
+        {
+            throw new InvalidOperationException("A bill must have at least one participant before it can be finalized.");
+        }
+
         if (_items.Count == 0)
         {
             throw new InvalidOperationException("A bill must have at least one item before it can be finalized.");
