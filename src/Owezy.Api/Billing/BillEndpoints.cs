@@ -25,6 +25,13 @@ public static class BillEndpoints
         group.MapPost("/{billId}/finalize", HandleFinalizeBillAsync)
             .WithName("FinalizeBill");
 
+        group.MapPost("/{billId}/participants/{participantId}/access-link", HandleGenerateAccessLinkAsync)
+            .WithName("GenerateParticipantAccessLink");
+
+        app.MapGet("/participant-access/{token}", HandleGetParticipantViewAsync)
+            .AllowAnonymous()
+            .WithName("GetParticipantView");
+
         return app;
     }
 
@@ -283,6 +290,100 @@ public static class BillEndpoints
             result.Title,
             result.Status.ToString(),
             result.FinalizedAt
+        );
+
+        return Results.Ok(response);
+    }
+
+    private static async Task<IResult> HandleGenerateAccessLinkAsync(
+        string billId,
+        string participantId,
+        ClaimsPrincipal user,
+        IBillService billService,
+        CancellationToken cancellationToken)
+    {
+        var authenticatedPhone = GetAuthenticatedPhoneNumber(user);
+        if (authenticatedPhone is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        if (!Guid.TryParse(billId, out var billGuid))
+        {
+            return Results.BadRequest(new ApiError("invalid_bill_id", "billId must be a valid GUID."));
+        }
+
+        if (!Guid.TryParse(participantId, out var participantGuid))
+        {
+            return Results.BadRequest(new ApiError("invalid_participant_id", "participantId must be a valid GUID."));
+        }
+
+        GenerateParticipantAccessLinkResult result;
+        try
+        {
+            result = await billService.GenerateParticipantAccessLinkAsync(
+                authenticatedPhone,
+                new GenerateParticipantAccessLinkRequest(new BillId(billGuid), new ParticipantId(participantGuid)),
+                cancellationToken);
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound(new ApiError("bill_not_found", "The specified bill was not found."));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Results.Json(new ApiError("unauthorized", ex.Message), statusCode: 403);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(new ApiError("invalid_request", ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Json(new ApiError("bill_not_finalized", ex.Message), statusCode: 409);
+        }
+        catch (Exception)
+        {
+            return Results.Problem("An error occurred while generating the participant access link.", statusCode: 500);
+        }
+
+        var response = new GenerateAccessLinkHttpResponse(
+            result.RawToken,
+            result.BillId.Value.ToString(),
+            result.ParticipantId.Value.ToString()
+        );
+
+        return Results.Ok(response);
+    }
+
+    private static async Task<IResult> HandleGetParticipantViewAsync(
+        string token,
+        IBillService billService,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Results.NotFound(new ApiError("invalid_token", "Participant access token is invalid or expired."));
+        }
+
+        var result = await billService.GetParticipantViewAsync(token, cancellationToken);
+        if (result is null)
+        {
+            return Results.NotFound(new ApiError("access_denied", "Participant access token is invalid or expired."));
+        }
+
+        var response = new ParticipantBillViewHttpResponse(
+            result.BillTitle,
+            result.BillTotalAmount,
+            result.ParticipantId.Value.ToString(),
+            result.ParticipantPhoneNumber.Value,
+            result.TotalAmountOwed,
+            result.Items.Select(i => new ParticipantItemShareHttpResponse(
+                i.Description,
+                i.Quantity,
+                i.ItemTotalAmount,
+                i.MyShareAmount
+            )).ToList()
         );
 
         return Results.Ok(response);

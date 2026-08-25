@@ -21,4 +21,5 @@ public sealed class BillRow
 
     public ICollection<BillParticipantRow> Participants { get; set; } = new List<BillParticipantRow>();
     public ICollection<BillItemRow> Items { get; set; } = new List<BillItemRow>();
+    public ICollection<ParticipantAccessLinkRow> AccessLinks { get; set; } = new List<ParticipantAccessLinkRow>();
 }

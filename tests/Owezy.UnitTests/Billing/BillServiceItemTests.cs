@@ -18,6 +18,12 @@ public class BillServiceItemTests
             return Task.FromResult(bill);
         }
 
+        public Task<Bill?> GetByAccessLinkHashAsync(string tokenHash, CancellationToken ct = default)
+        {
+            var bill = Store.Values.FirstOrDefault(b => b.AccessLinks.Any(l => l.TokenHash == tokenHash && !l.IsRevoked));
+            return Task.FromResult(bill);
+        }
+
         public Task AddAsync(Bill bill, CancellationToken cancellationToken = default)
         {
             Store[bill.Id] = bill;

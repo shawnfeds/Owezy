@@ -20,9 +20,15 @@ public class BillApiTests : IClassFixture<WebApplicationFactory<Program>>
     {
         public Dictionary<BillId, Bill> Store { get; } = new();
 
-        public Task<Bill?> GetByIdAsync(BillId id, CancellationToken cancellationToken = default)
+        public Task<Bill?> GetByIdAsync(BillId id, CancellationToken ct = default)
         {
-            Store.TryGetValue(id, out var bill);
+            Store.TryGetValue(id, out var b);
+            return Task.FromResult(b);
+        }
+
+        public Task<Bill?> GetByAccessLinkHashAsync(string tokenHash, CancellationToken ct = default)
+        {
+            var bill = Store.Values.FirstOrDefault(b => b.AccessLinks.Any(l => l.TokenHash == tokenHash && !l.IsRevoked));
             return Task.FromResult(bill);
         }
 

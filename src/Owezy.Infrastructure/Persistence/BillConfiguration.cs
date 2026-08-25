@@ -34,5 +34,10 @@ internal sealed class BillConfiguration : IEntityTypeConfiguration<BillRow>
             .WithOne(p => p.Bill)
             .HasForeignKey(p => p.BillId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(b => b.AccessLinks)
+            .WithOne(l => l.Bill)
+            .HasForeignKey(l => l.BillId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

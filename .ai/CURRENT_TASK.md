@@ -1,4 +1,4 @@
-# Current Task — Phase 2 Next Milestone
+# Current Task — Next Implementation Milestone
 
 ## Status
 
@@ -10,11 +10,11 @@ Phase 2 — Bill Management & Item Splitting Core
 
 ## Objective
 
-Define and implement the next milestone following completion of Milestone 2.0 (Bill Lifecycle & Finalization).
+Wait for next milestone prompt following completion of Participant Access & Sharing batch.
 
 ## Completed Prerequisites
 
-Milestones 1.1 through 2.0 are complete.
+Milestones 1.1 through 2.0.1 and Participant Access & Sharing are complete.
 
 ## Rule
 

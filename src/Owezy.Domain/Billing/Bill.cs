@@ -6,6 +6,7 @@ public sealed class Bill
 {
     private readonly List<Participant> _participants = new();
     private readonly List<BillItem> _items = new();
+    private readonly List<ParticipantAccessLink> _accessLinks = new();
 
     public BillId Id { get; }
     public string Title { get; }
@@ -19,6 +20,7 @@ public sealed class Bill
 
     public IReadOnlyCollection<Participant> Participants => _participants.AsReadOnly();
     public IReadOnlyCollection<BillItem> Items => _items.AsReadOnly();
+    public IReadOnlyCollection<ParticipantAccessLink> AccessLinks => _accessLinks.AsReadOnly();
 
     private Bill(
         BillId id,
@@ -67,7 +69,8 @@ public sealed class Bill
         BillStatus status,
         IEnumerable<Participant> participants,
         IEnumerable<BillItem>? items = null,
-        DateTimeOffset? finalizedAt = null)
+        DateTimeOffset? finalizedAt = null,
+        IEnumerable<ParticipantAccessLink>? accessLinks = null)
     {
         if (id.Value == Guid.Empty)
         {
@@ -87,6 +90,10 @@ public sealed class Bill
         if (items is not null)
         {
             bill._items.AddRange(items);
+        }
+        if (accessLinks is not null)
+        {
+            bill._accessLinks.AddRange(accessLinks);
         }
         return bill;
     }
@@ -162,5 +169,40 @@ public sealed class Bill
 
         Status = BillStatus.Finalized;
         FinalizedAt = now;
+    }
+
+    /// <summary>
+    /// Generates a participant access link for a finalized bill.
+    /// Invariants enforced:
+    /// 1. Bill MUST be finalized (OPEN bills cannot generate access links).
+    /// 2. Participant MUST belong to this bill.
+    /// Revokes any previous active link for the participant.
+    /// </summary>
+    public ParticipantAccessLink GenerateAccessLink(ParticipantId participantId, string tokenHash, DateTimeOffset now)
+    {
+        if (!IsFinalized)
+        {
+            throw new InvalidOperationException("Participant access links can only be generated for finalized bills.");
+        }
+
+        if (!_participants.Any(p => p.Id == participantId))
+        {
+            throw new ArgumentException($"Participant '{participantId}' does not belong to bill '{Id}'.", nameof(participantId));
+        }
+
+        if (string.IsNullOrWhiteSpace(tokenHash))
+        {
+            throw new ArgumentException("TokenHash cannot be null or empty.", nameof(tokenHash));
+        }
+
+        // Revoke existing active links for this participant
+        foreach (var existing in _accessLinks.Where(l => l.ParticipantId == participantId && !l.IsRevoked))
+        {
+            existing.Revoke();
+        }
+
+        var link = ParticipantAccessLink.Create(Id, participantId, tokenHash, now);
+        _accessLinks.Add(link);
+        return link;
     }
 }

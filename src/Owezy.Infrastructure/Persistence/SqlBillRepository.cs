@@ -20,7 +20,27 @@ public sealed class SqlBillRepository : IBillRepository
             .Include(b => b.Participants)
             .Include(b => b.Items)
                 .ThenInclude(i => i.Sharers)
+            .Include(b => b.AccessLinks)
             .FirstOrDefaultAsync(b => b.Id == id.Value, cancellationToken);
+
+        if (row is null)
+        {
+            return null;
+        }
+
+        return MapToDomain(row);
+    }
+
+    public async Task<Bill?> GetByAccessLinkHashAsync(string tokenHash, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tokenHash);
+
+        var row = await _context.Bills
+            .Include(b => b.Participants)
+            .Include(b => b.Items)
+                .ThenInclude(i => i.Sharers)
+            .Include(b => b.AccessLinks)
+            .FirstOrDefaultAsync(b => b.AccessLinks.Any(l => l.TokenHash == tokenHash && !l.IsRevoked), cancellationToken);
 
         if (row is null)
         {
@@ -47,6 +67,7 @@ public sealed class SqlBillRepository : IBillRepository
             .Include(b => b.Participants)
             .Include(b => b.Items)
                 .ThenInclude(i => i.Sharers)
+            .Include(b => b.AccessLinks)
             .FirstOrDefaultAsync(b => b.Id == bill.Id.Value, cancellationToken);
 
         if (existingRow is null)
@@ -96,6 +117,28 @@ public sealed class SqlBillRepository : IBillRepository
             }
         }
 
+        // Sync access links
+        foreach (var link in bill.AccessLinks)
+        {
+            var existingLink = existingRow.AccessLinks.FirstOrDefault(l => l.TokenHash == link.TokenHash);
+            if (existingLink is null)
+            {
+                existingRow.AccessLinks.Add(new ParticipantAccessLinkRow
+                {
+                    Id = Guid.NewGuid(),
+                    BillId = bill.Id.Value,
+                    ParticipantId = link.ParticipantId.Value,
+                    TokenHash = link.TokenHash,
+                    CreatedAt = link.CreatedAt,
+                    IsRevoked = link.IsRevoked
+                });
+            }
+            else
+            {
+                existingLink.IsRevoked = link.IsRevoked;
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
     }
 
@@ -128,6 +171,15 @@ public sealed class SqlBillRepository : IBillRepository
                     ItemId = i.Id.Value,
                     ParticipantId = s.Value
                 }).ToList()
+            }).ToList(),
+            AccessLinks = bill.AccessLinks.Select(l => new ParticipantAccessLinkRow
+            {
+                Id = Guid.NewGuid(),
+                BillId = bill.Id.Value,
+                ParticipantId = l.ParticipantId.Value,
+                TokenHash = l.TokenHash,
+                CreatedAt = l.CreatedAt,
+                IsRevoked = l.IsRevoked
             }).ToList()
         };
     }
@@ -150,6 +202,14 @@ public sealed class SqlBillRepository : IBillRepository
             i.Sharers.Select(s => new ParticipantId(s.ParticipantId))
         ));
 
+        var accessLinks = row.AccessLinks.Select(l => ParticipantAccessLink.Reconstitute(
+            new BillId(l.BillId),
+            new ParticipantId(l.ParticipantId),
+            l.TokenHash,
+            l.CreatedAt,
+            l.IsRevoked
+        ));
+
         return Bill.Reconstitute(
             new BillId(row.Id),
             row.Title,
@@ -158,7 +218,8 @@ public sealed class SqlBillRepository : IBillRepository
             (BillStatus)row.Status,
             participants,
             items,
-            row.FinalizedAt
+            row.FinalizedAt,
+            accessLinks
         );
     }
 }

@@ -17,6 +17,7 @@ public sealed class OwezyDbContext : DbContext
     internal DbSet<BillParticipantRow> BillParticipants => Set<BillParticipantRow>();
     internal DbSet<BillItemRow> BillItems => Set<BillItemRow>();
     internal DbSet<BillItemSharerRow> BillItemSharers => Set<BillItemSharerRow>();
+    internal DbSet<ParticipantAccessLinkRow> ParticipantAccessLinks => Set<ParticipantAccessLinkRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

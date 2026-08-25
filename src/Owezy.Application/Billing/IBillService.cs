@@ -9,4 +9,6 @@ public interface IBillService
     Task<AddBillItemResult> AddBillItemAsync(PhoneNumber callerPhoneNumber, AddBillItemRequest request, CancellationToken cancellationToken = default);
     Task<CalculateItemSharesResult> CalculateItemSharesAsync(PhoneNumber callerPhoneNumber, CalculateItemSharesRequest request, CancellationToken cancellationToken = default);
     Task<FinalizeBillResult> FinalizeBillAsync(PhoneNumber callerPhoneNumber, FinalizeBillRequest request, CancellationToken cancellationToken = default);
+    Task<GenerateParticipantAccessLinkResult> GenerateParticipantAccessLinkAsync(PhoneNumber callerPhoneNumber, GenerateParticipantAccessLinkRequest request, CancellationToken cancellationToken = default);
+    Task<ParticipantBillViewResult?> GetParticipantViewAsync(string rawToken, CancellationToken cancellationToken = default);
 }

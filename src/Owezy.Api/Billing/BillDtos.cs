@@ -45,3 +45,25 @@ public sealed record FinalizeBillHttpResponse(
     string Status,
     DateTimeOffset? FinalizedAt
 );
+
+public sealed record GenerateAccessLinkHttpResponse(
+    string Token,
+    string BillId,
+    string ParticipantId
+);
+
+public sealed record ParticipantItemShareHttpResponse(
+    string Description,
+    int Quantity,
+    decimal ItemTotalAmount,
+    decimal MyShareAmount
+);
+
+public sealed record ParticipantBillViewHttpResponse(
+    string BillTitle,
+    decimal BillTotalAmount,
+    string ParticipantId,
+    string ParticipantPhoneNumber,
+    decimal TotalAmountOwed,
+    List<ParticipantItemShareHttpResponse> Items
+);

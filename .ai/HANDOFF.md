@@ -1,44 +1,46 @@
-# Handoff — Milestone 2.0 Complete
+# Handoff — Participant Access & Sharing Complete
 
 ## Current State
 
-Milestone 2.0 (Bill Lifecycle & Finalization) is complete.
+Participant Access & Sharing milestone is complete.
 
 ## Capabilities Implemented
 
-- `Bill` domain aggregate lifecycle (`Owezy.Domain.Billing`):
-  - Transitions from OPEN (`BillStatus.Active`) to `BillStatus.Finalized`.
-  - Finalization sets `FinalizedAt` timestamp and permanently locks bill contents.
-  - Finalization requires at least one item in the bill.
-  - Re-finalization or adding participants/items to a finalized bill throws `InvalidOperationException`.
-- `IBillService` / `BillService` (`Owezy.Application.Billing`):
-  - `FinalizeBillAsync`: Authenticated splitter-only operation to finalize an OPEN bill.
-  - Guards on `AddParticipantAsync` and `AddBillItemAsync` prevent mutations on finalized bills.
-- Infrastructure & Persistence (`Owezy.Infrastructure.Persistence`):
-  - Added `FinalizedAt` nullable column to `Bills` table.
-  - EF Migration `AddBillFinalizedAt` created and verified.
-- HTTP API (`Owezy.Api.Billing`):
-  - `POST /bills/{billId}/finalize`: Finalize endpoint protected by JWT auth (splitter-only).
-  - Returns `200 OK` with `FinalizeBillHttpResponse` on success.
-  - Returns `403 Forbidden` if caller is not the bill splitter.
-  - Returns `409 Conflict` if bill is already finalized, has no items, or if attempting mutations on a finalized bill.
+- Domain Layer (`Owezy.Domain.Billing`):
+  - `ParticipantAccessLink` aggregate entity.
+  - `Bill.GenerateAccessLink(participantId, tokenHash, now)`: Enforces that access links can only be generated for FINALIZED bills and that the participant belongs to the bill. Revokes prior active links.
+- Application Layer (`Owezy.Application.Billing`):
+  - `IParticipantTokenGenerator` abstraction for secure token generation and SHA-256 hashing.
+  - `GenerateParticipantAccessLinkAsync`: Authenticated splitter-only operation returning an unguessable raw token.
+  - `GetParticipantViewAsync`: Anonymous participant view retrieval for finalized bills, using derived equal split shares without persisting shares.
+- Infrastructure Layer (`Owezy.Infrastructure`):
+  - `CryptoParticipantTokenGenerator` using `RandomNumberGenerator` (32 random bytes -> 64 hex chars) and `SHA256`.
+  - `ParticipantAccessLinkRow` and `ParticipantAccessLinkConfiguration` with unique index on `TokenHash`.
+  - EF Core migration `AddParticipantAccessLinks`.
+- API Layer (`Owezy.Api.Billing`):
+  - `POST /bills/{billId}/participants/{participantId}/access-link`: Splitter-only access link generation (`200 OK`).
+  - `GET /participant-access/{token}`: Anonymous participant-scoped view (`200 OK` or `404 Not Found`).
 
 ## Verification
 
 | Check | Result |
 |---|---|
 | Build | PASS (0 warnings, 0 errors) |
-| Unit tests | 111/111 PASS |
+| Unit tests | 123/123 PASS |
 | Architecture tests | 4/4 PASS |
-| Integration & API tests | 35/35 PASS |
-| Total test suite | 150/150 PASS |
+| Integration & API tests | 42/42 PASS |
+| Total test suite | 169/169 PASS |
 | Working tree | CLEAN (after commit) |
 
 ## Security & Scope Boundary
 
-- Only the authenticated bill splitter (`sub` / `phone_number` from JWT) can finalize a bill.
-- Finalization is single-way and permanent. Reopening, editing finalized bills, payment tracking, settlement, OCR, and notifications are NOT implemented.
+- Raw tokens are NEVER persisted (only SHA-256 hashes are stored).
+- Opaque random tokens contain no encoded business data or identifiers.
+- Participant views are strictly participant-scoped (no cross-participant payment/status info).
+- OPEN bills block participant access link generation and token view retrieval.
+- Participant tokens cannot mutate bills, finalize bills, or access splitter endpoints.
+- Payment tracking, settlement, OCR, UPI links, notifications, and QR codes are NOT implemented.
 
 ## Next
 
-Next milestone. Do not implement until explicitly instructed.
+Wait for next explicit instruction.

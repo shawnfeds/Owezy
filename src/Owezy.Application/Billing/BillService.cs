@@ -8,11 +8,16 @@ public sealed class BillService : IBillService
 {
     private readonly IBillRepository _billRepository;
     private readonly IDateTimeProvider _dateTimeProvider;
+    private readonly IParticipantTokenGenerator? _tokenGenerator;
 
-    public BillService(IBillRepository billRepository, IDateTimeProvider dateTimeProvider)
+    public BillService(
+        IBillRepository billRepository,
+        IDateTimeProvider dateTimeProvider,
+        IParticipantTokenGenerator? tokenGenerator = null)
     {
         _billRepository = billRepository ?? throw new ArgumentNullException(nameof(billRepository));
         _dateTimeProvider = dateTimeProvider ?? throw new ArgumentNullException(nameof(dateTimeProvider));
+        _tokenGenerator = tokenGenerator;
     }
 
     public async Task<CreateBillResult> CreateBillAsync(
@@ -202,6 +207,117 @@ public sealed class BillService : IBillService
             bill.Title,
             bill.Status,
             bill.FinalizedAt
+        );
+    }
+
+    public async Task<GenerateParticipantAccessLinkResult> GenerateParticipantAccessLinkAsync(
+        PhoneNumber callerPhoneNumber,
+        GenerateParticipantAccessLinkRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(callerPhoneNumber);
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request.BillId.Value == Guid.Empty)
+        {
+            throw new ArgumentException("BillId cannot be empty.", nameof(request));
+        }
+        if (request.ParticipantId.Value == Guid.Empty)
+        {
+            throw new ArgumentException("ParticipantId cannot be empty.", nameof(request));
+        }
+
+        var bill = await _billRepository.GetByIdAsync(request.BillId, cancellationToken);
+        if (bill is null)
+        {
+            throw new KeyNotFoundException($"Bill with ID '{request.BillId}' was not found.");
+        }
+
+        // Only the authenticated splitter can generate access links
+        if (bill.SplitterPhoneNumber != callerPhoneNumber)
+        {
+            throw new UnauthorizedAccessException("Only the bill splitter can generate participant access links.");
+        }
+
+        var tokenGen = _tokenGenerator ?? throw new InvalidOperationException("IParticipantTokenGenerator is not configured.");
+        var rawToken = tokenGen.GenerateToken();
+        var tokenHash = tokenGen.HashToken(rawToken);
+
+        var now = _dateTimeProvider.UtcNow;
+        var link = bill.GenerateAccessLink(request.ParticipantId, tokenHash, now);
+
+        await _billRepository.UpdateAsync(bill, cancellationToken);
+
+        return new GenerateParticipantAccessLinkResult(
+            rawToken,
+            bill.Id,
+            request.ParticipantId,
+            link.CreatedAt
+        );
+    }
+
+    public async Task<ParticipantBillViewResult?> GetParticipantViewAsync(
+        string rawToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(rawToken))
+        {
+            return null;
+        }
+
+        var tokenGen = _tokenGenerator ?? throw new InvalidOperationException("IParticipantTokenGenerator is not configured.");
+        var tokenHash = tokenGen.HashToken(rawToken.Trim());
+
+        var bill = await _billRepository.GetByAccessLinkHashAsync(tokenHash, cancellationToken);
+        if (bill is null || !bill.IsFinalized)
+        {
+            // Participant links are only accessible for FINALIZED bills
+            return null;
+        }
+
+        var link = bill.AccessLinks.FirstOrDefault(l => l.TokenHash == tokenHash && !l.IsRevoked);
+        if (link is null)
+        {
+            return null;
+        }
+
+        var targetParticipant = bill.Participants.FirstOrDefault(p => p.Id == link.ParticipantId);
+        if (targetParticipant is null)
+        {
+            return null;
+        }
+
+        // Calculate participant's item shares using EqualSplitCalculator
+        decimal billTotalAmount = 0m;
+        decimal totalAmountOwed = 0m;
+        var participantItems = new List<ParticipantItemShareDto>();
+
+        foreach (var item in bill.Items)
+        {
+            billTotalAmount += item.Amount;
+
+            if (item.SharerParticipantIds.Contains(targetParticipant.Id))
+            {
+                var shares = EqualSplitCalculator.Calculate(item.Amount, item.SharerParticipantIds);
+                var myShare = shares.First(s => s.ParticipantId == targetParticipant.Id);
+                totalAmountOwed += myShare.Amount;
+                participantItems.Add(new ParticipantItemShareDto(
+                    item.Description,
+                    item.Quantity,
+                    item.Amount,
+                    myShare.Amount
+                ));
+            }
+        }
+
+        return new ParticipantBillViewResult(
+            bill.Id,
+            bill.Title,
+            billTotalAmount,
+            targetParticipant.Id,
+            targetParticipant.PhoneNumber,
+            totalAmountOwed,
+            participantItems
         );
     }
 }

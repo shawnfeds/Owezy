@@ -24,12 +24,12 @@ Domain ← Application ← Infrastructure ← API
 - Entity Framework Core
 - SQL Server
 
-## Authentication & Bill Domain
+## Authentication, Bill Domain & Participant Access
 
 OTP-based + JWT Access Token authentication.
 
-Bill, Participant, Items, Calculation & Lifecycle Domain:
-- `Bill` aggregate: `Id`, `Title`, `SplitterPhoneNumber`, `CreatedAt`, `Status` (`Active` / `Finalized`), `FinalizedAt`, `Participants`, `Items`
+Bill, Participant, Items, Calculation, Lifecycle & Participant Access Domain:
+- `Bill` aggregate: `Id`, `Title`, `SplitterPhoneNumber`, `CreatedAt`, `Status` (`Active` / `Finalized`), `FinalizedAt`, `Participants`, `Items`, `AccessLinks`
 - Splitter automatically added as initial participant
 - Duplicate participant phone numbers rejected within a bill
 - `BillItem`: `Id`, `BillId`, `Description`, `Quantity` (>0), `Amount` (>0 exact decimal total line-item amount), `SharerParticipantIds`
@@ -37,9 +37,14 @@ Bill, Participant, Items, Calculation & Lifecycle Domain:
 - Calculated shares are derived and NOT persisted
 - Bill Lifecycle (`OPEN` -> `FINALIZED`):
   - An OPEN bill can receive new participants and items.
-  - Finalization requires at least one item.
+  - Finalization requires at least one participant and at least one item.
   - A FINALIZED bill is permanently immutable: adding participants/items returns 409 Conflict.
-- Database persistence: `Bills`, `BillParticipants`, `BillItems`, and `BillItemSharers` tables
+- Participant Access & Sharing:
+  - Participant links available ONLY after a bill is FINALIZED.
+  - Generated using 256-bit cryptographically random opaque tokens.
+  - Raw tokens are NEVER persisted; only SHA-256 hashes (`TokenHash`) are stored in `ParticipantAccessLinks` table.
+  - Participant view (`GET /participant-access/{token}`) is strictly participant-scoped (shows only that participant's items, total owed, and bill overview; no cross-participant info or payment tracking).
+- Database persistence: `Bills`, `BillParticipants`, `BillItems`, `BillItemSharers`, and `ParticipantAccessLinks` tables
 - Endpoints:
   - `POST /auth/otp/request` → `202 Accepted`
   - `POST /auth/otp/verify` → `200 OK` (`accessToken`)
@@ -47,6 +52,8 @@ Bill, Participant, Items, Calculation & Lifecycle Domain:
   - `POST /bills/{billId}/participants` → `200 OK` (Requires JWT auth, caller must be bill member)
   - `POST /bills/{billId}/items` → `201 Created` (Requires JWT auth, caller must be authenticated splitter)
   - `POST /bills/{billId}/finalize` → `200 OK` (Requires JWT auth, caller must be authenticated splitter)
+  - `POST /bills/{billId}/participants/{participantId}/access-link` → `200 OK` (Requires JWT auth, caller must be authenticated splitter)
+  - `GET /participant-access/{token}` → `200 OK` (AllowAnonymous, token credential)
 
 ## Persistence
 
@@ -56,6 +63,7 @@ Bill, Participant, Items, Calculation & Lifecycle Domain:
 - `BillParticipants`
 - `BillItems`
 - `BillItemSharers`
+- `ParticipantAccessLinks`
 
 - SQL Server + EF Core. Repositories in `Infrastructure`.
 - Application contracts: `IOtpChallengeRepository`, `IBillRepository`
@@ -73,13 +81,15 @@ Bill, Participant, Items, Calculation & Lifecycle Domain:
 - **1.8** Bill Items & Sharer Definitions — COMPLETE
 - **1.9** Authoritative Split Calculation Engine — COMPLETE
 - **2.0** Bill Lifecycle & Finalization — COMPLETE
+- **2.0.1** Finalization Participant Invariant Fix — COMPLETE
+- **Participant Access & Sharing** — COMPLETE
 
 ## Current Milestone
 
-**2.1** / Next Phase — see `CURRENT_TASK.md` for objective.
+Next Phase — see `CURRENT_TASK.md` for objective.
 
 ## Not Yet Implemented
 
-OCR pipeline, participant link access tokens, payment tracking, UPI link generation, settlement, notifications.
+OCR pipeline, payment tracking, UPI link generation, settlement, notifications, QR codes.
 
 Do not expand into these areas unless explicitly instructed.

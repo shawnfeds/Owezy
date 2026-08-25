@@ -50,6 +50,9 @@ public static class ServiceRegistration
         // SMS provider: development only for this milestone
         services.AddSingleton<ISmsProvider, DevelopmentSmsProvider>();
 
+        // Participant Token Generator
+        services.AddSingleton<IParticipantTokenGenerator, Owezy.Infrastructure.Security.CryptoParticipantTokenGenerator>();
+
         // Application services
         services.AddScoped<IOtpService, OtpService>();
         services.AddScoped<IBillService, BillService>();
