@@ -10,4 +10,4 @@ Next explicit milestone prompt.
 
 ## Completed
 
-Milestones 1.1–2.0.1, Participant Access & Sharing, Payment Tracking, Settlement & Final Balance, and Receipt Capture & OCR Foundation are complete.
+Milestones 1.1–2.0.1, Participant Access & Sharing, Payment Tracking, Settlement & Final Balance, Receipt Capture & OCR Foundation, and OCR Review & Confirmation are complete.

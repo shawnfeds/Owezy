@@ -271,4 +271,196 @@ public class ReceiptServiceTests
 
         Assert.Null(draftResult);
     }
+
+    [Fact]
+    public async Task Splitter_UpdateReceiptDraft_Succeeds()
+    {
+        var svc = CreateService();
+        var bill = Bill.Create("Dinner", _splitterPhone, _clock.UtcNow);
+        await _billRepo.AddAsync(bill);
+
+        using var stream = CreateValidJpegStream();
+        var uploadResult = await svc.UploadReceiptAsync(_splitterPhone, bill.Id, stream, "receipt.jpg", "image/jpeg", stream.Length);
+
+        var updateReq = new UpdateReceiptDraftRequest(
+            "Updated Merchant",
+            "2026-08-25",
+            "INR",
+            1000m,
+            100m,
+            50m,
+            1050m,
+            new[]
+            {
+                new OcrLineItemDto("Corrected Pizza", 2, 500m, 1000m, 0.99m)
+            }
+        );
+
+        var updatedResult = await svc.UpdateReceiptDraftAsync(_splitterPhone, bill.Id, uploadResult.ReceiptId, updateReq);
+
+        Assert.NotNull(updatedResult);
+        Assert.Equal("Updated Merchant", updatedResult.OcrDraft!.MerchantName);
+        Assert.Single(updatedResult.OcrDraft.LineItems);
+        Assert.Equal("Corrected Pizza", updatedResult.OcrDraft.LineItems[0].Description);
+    }
+
+    [Fact]
+    public async Task NonSplitter_UpdateReceiptDraft_ThrowsUnauthorizedAccessException()
+    {
+        var svc = CreateService();
+        var bill = Bill.Create("Dinner", _splitterPhone, _clock.UtcNow);
+        await _billRepo.AddAsync(bill);
+
+        using var stream = CreateValidJpegStream();
+        var uploadResult = await svc.UploadReceiptAsync(_splitterPhone, bill.Id, stream, "receipt.jpg", "image/jpeg", stream.Length);
+
+        var updateReq = new UpdateReceiptDraftRequest("Merchant", null, null, null, null, null, null, Array.Empty<OcrLineItemDto>());
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            svc.UpdateReceiptDraftAsync(_otherPhone, bill.Id, uploadResult.ReceiptId, updateReq));
+    }
+
+    [Fact]
+    public async Task UpdateReceiptDraft_FinalizedBill_ThrowsInvalidOperationException()
+    {
+        var svc = CreateService();
+        var bill = Bill.Create("Dinner", _splitterPhone, _clock.UtcNow);
+        var part = bill.AddParticipant(_otherPhone, _clock.UtcNow);
+        bill.AddItem("Item", 1, 100m, new[] { part.Id });
+        await _billRepo.AddAsync(bill);
+
+        using var stream = CreateValidJpegStream();
+        var uploadResult = await svc.UploadReceiptAsync(_splitterPhone, bill.Id, stream, "receipt.jpg", "image/jpeg", stream.Length);
+
+        bill.Finalize(_clock.UtcNow);
+
+        var updateReq = new UpdateReceiptDraftRequest("Merchant", null, null, null, null, null, null, Array.Empty<OcrLineItemDto>());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            svc.UpdateReceiptDraftAsync(_splitterPhone, bill.Id, uploadResult.ReceiptId, updateReq));
+    }
+
+    [Fact]
+    public async Task UpdateReceiptDraft_InvalidLineItem_ThrowsInvalidOperationException()
+    {
+        var svc = CreateService();
+        var bill = Bill.Create("Dinner", _splitterPhone, _clock.UtcNow);
+        await _billRepo.AddAsync(bill);
+
+        using var stream = CreateValidJpegStream();
+        var uploadResult = await svc.UploadReceiptAsync(_splitterPhone, bill.Id, stream, "receipt.jpg", "image/jpeg", stream.Length);
+
+        var badReq = new UpdateReceiptDraftRequest(
+            "Merchant", null, null, null, null, null, null,
+            new[] { new OcrLineItemDto("", 1, 100m, 100m, null) } // Empty description
+        );
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            svc.UpdateReceiptDraftAsync(_splitterPhone, bill.Id, uploadResult.ReceiptId, badReq));
+    }
+
+    [Fact]
+    public async Task Splitter_ConfirmReceipt_CreatesBillItems_WithNoSharers()
+    {
+        var svc = CreateService();
+        var bill = Bill.Create("Dinner", _splitterPhone, _clock.UtcNow);
+        await _billRepo.AddAsync(bill);
+
+        using var stream = CreateValidJpegStream();
+        var uploadResult = await svc.UploadReceiptAsync(_splitterPhone, bill.Id, stream, "receipt.jpg", "image/jpeg", stream.Length);
+
+        var confirmResult = await svc.ConfirmReceiptAsync(_splitterPhone, bill.Id, uploadResult.ReceiptId);
+
+        Assert.NotNull(confirmResult);
+        Assert.Equal(uploadResult.ReceiptId, confirmResult.ReceiptId);
+        Assert.Single(confirmResult.CreatedItemIds);
+
+        // Verify Bill now contains the confirmed item
+        var updatedBill = await _billRepo.GetByIdAsync(bill.Id);
+        Assert.Single(updatedBill!.Items);
+        var billItem = updatedBill.Items.First();
+        Assert.Equal("Pizza", billItem.Description);
+        Assert.Equal(2, billItem.Quantity);
+        Assert.Equal(500m, billItem.Amount);
+
+        // Verify NO SHARERS were auto-assigned!
+        Assert.Empty(billItem.SharerParticipantIds);
+    }
+
+    [Fact]
+    public async Task RepeatedConfirmReceipt_ThrowsInvalidOperationException_PreventsDuplicateItems()
+    {
+        var svc = CreateService();
+        var bill = Bill.Create("Dinner", _splitterPhone, _clock.UtcNow);
+        await _billRepo.AddAsync(bill);
+
+        using var stream = CreateValidJpegStream();
+        var uploadResult = await svc.UploadReceiptAsync(_splitterPhone, bill.Id, stream, "receipt.jpg", "image/jpeg", stream.Length);
+
+        await svc.ConfirmReceiptAsync(_splitterPhone, bill.Id, uploadResult.ReceiptId);
+
+        // Second confirmation must fail safely
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            svc.ConfirmReceiptAsync(_splitterPhone, bill.Id, uploadResult.ReceiptId));
+
+        // Bill item count remains exactly 1 (no duplicates!)
+        var updatedBill = await _billRepo.GetByIdAsync(bill.Id);
+        Assert.Single(updatedBill!.Items);
+    }
+
+    [Fact]
+    public async Task ConfirmReceipt_FinalizedBill_ThrowsInvalidOperationException()
+    {
+        var svc = CreateService();
+        var bill = Bill.Create("Dinner", _splitterPhone, _clock.UtcNow);
+        var part = bill.AddParticipant(_otherPhone, _clock.UtcNow);
+        bill.AddItem("Item", 1, 100m, new[] { part.Id });
+        await _billRepo.AddAsync(bill);
+
+        using var stream = CreateValidJpegStream();
+        var uploadResult = await svc.UploadReceiptAsync(_splitterPhone, bill.Id, stream, "receipt.jpg", "image/jpeg", stream.Length);
+
+        bill.Finalize(_clock.UtcNow);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            svc.ConfirmReceiptAsync(_splitterPhone, bill.Id, uploadResult.ReceiptId));
+    }
+
+    [Fact]
+    public async Task ConfirmReceipt_MissingLineTotal_ThrowsInvalidOperationException()
+    {
+        var svc = CreateService();
+        var bill = Bill.Create("Dinner", _splitterPhone, _clock.UtcNow);
+        await _billRepo.AddAsync(bill);
+
+        using var stream = CreateValidJpegStream();
+        var uploadResult = await svc.UploadReceiptAsync(_splitterPhone, bill.Id, stream, "receipt.jpg", "image/jpeg", stream.Length);
+
+        // Update draft to have an item with NO line total and NO unit price (ambiguous item)
+        var updateReq = new UpdateReceiptDraftRequest(
+            "Merchant", null, null, null, null, null, null,
+            new[] { new OcrLineItemDto("Ambiguous Item", null, null, null, null) }
+        );
+        await svc.UpdateReceiptDraftAsync(_splitterPhone, bill.Id, uploadResult.ReceiptId, updateReq);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            svc.ConfirmReceiptAsync(_splitterPhone, bill.Id, uploadResult.ReceiptId));
+
+        Assert.Contains("requires a valid positive line amount", ex.Message);
+    }
+
+    [Fact]
+    public async Task NonSplitter_ConfirmReceipt_ThrowsUnauthorizedAccessException()
+    {
+        var svc = CreateService();
+        var bill = Bill.Create("Dinner", _splitterPhone, _clock.UtcNow);
+        await _billRepo.AddAsync(bill);
+
+        using var stream = CreateValidJpegStream();
+        var uploadResult = await svc.UploadReceiptAsync(_splitterPhone, bill.Id, stream, "receipt.jpg", "image/jpeg", stream.Length);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            svc.ConfirmReceiptAsync(_otherPhone, bill.Id, uploadResult.ReceiptId));
+    }
 }
+

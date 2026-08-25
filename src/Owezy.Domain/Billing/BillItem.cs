@@ -61,10 +61,6 @@ public sealed class BillItem
         ArgumentNullException.ThrowIfNull(sharerParticipantIds);
 
         var sharerList = sharerParticipantIds.ToList();
-        if (sharerList.Count == 0)
-        {
-            throw new ArgumentException("An item must have at least one sharer.", nameof(sharerParticipantIds));
-        }
 
         var uniqueSharerSet = new HashSet<ParticipantId>();
         foreach (var sharerId in sharerList)

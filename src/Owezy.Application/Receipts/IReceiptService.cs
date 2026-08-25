@@ -29,4 +29,25 @@ public interface IReceiptService
         BillId billId,
         ReceiptId receiptId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates the OCR draft with splitter corrections before confirmation.
+    /// Only allowed while bill is OPEN.
+    /// </summary>
+    Task<ReceiptDraftResult?> UpdateReceiptDraftAsync(
+        PhoneNumber callerPhoneNumber,
+        BillId billId,
+        ReceiptId receiptId,
+        UpdateReceiptDraftRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Confirms the reviewed OCR draft and creates actual BillItems.
+    /// Only allowed while bill is OPEN. Idempotent / duplicate confirmation prevented.
+    /// </summary>
+    Task<ConfirmReceiptResult> ConfirmReceiptAsync(
+        PhoneNumber callerPhoneNumber,
+        BillId billId,
+        ReceiptId receiptId,
+        CancellationToken cancellationToken = default);
 }

@@ -13,6 +13,7 @@ public sealed class Receipt
     public string StorageKey { get; }
     public ReceiptStatus Status { get; private set; }
     public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset? ConfirmedAt { get; private set; }
     public OcrReceiptDraft? OcrDraft { get; private set; }
 
     private Receipt(
@@ -21,6 +22,7 @@ public sealed class Receipt
         string storageKey,
         ReceiptStatus status,
         DateTimeOffset createdAt,
+        DateTimeOffset? confirmedAt,
         OcrReceiptDraft? ocrDraft)
     {
         Id = id;
@@ -28,6 +30,7 @@ public sealed class Receipt
         StorageKey = storageKey ?? throw new ArgumentNullException(nameof(storageKey));
         Status = status;
         CreatedAt = createdAt;
+        ConfirmedAt = confirmedAt;
         OcrDraft = ocrDraft;
     }
 
@@ -38,7 +41,7 @@ public sealed class Receipt
         if (string.IsNullOrWhiteSpace(storageKey))
             throw new ArgumentException("StorageKey cannot be empty.", nameof(storageKey));
 
-        return new Receipt(ReceiptId.New(), billId, storageKey, ReceiptStatus.Created, createdAt, null);
+        return new Receipt(ReceiptId.New(), billId, storageKey, ReceiptStatus.Created, createdAt, null, null);
     }
 
     public static Receipt Reconstitute(
@@ -47,9 +50,10 @@ public sealed class Receipt
         string storageKey,
         ReceiptStatus status,
         DateTimeOffset createdAt,
+        DateTimeOffset? confirmedAt,
         OcrReceiptDraft? ocrDraft)
     {
-        return new Receipt(id, billId, storageKey, status, createdAt, ocrDraft);
+        return new Receipt(id, billId, storageKey, status, createdAt, confirmedAt, ocrDraft);
     }
 
     public void MarkProcessed(OcrReceiptDraft draft)
@@ -62,5 +66,38 @@ public sealed class Receipt
     public void MarkFailed()
     {
         Status = ReceiptStatus.Failed;
+    }
+
+    public void UpdateDraft(OcrReceiptDraft updatedDraft)
+    {
+        ArgumentNullException.ThrowIfNull(updatedDraft);
+
+        if (Status == ReceiptStatus.Confirmed)
+        {
+            throw new InvalidOperationException("Cannot update a receipt draft that has already been confirmed.");
+        }
+
+        if (Status != ReceiptStatus.Processed)
+        {
+            throw new InvalidOperationException("Only processed receipt drafts can be updated.");
+        }
+
+        OcrDraft = updatedDraft;
+    }
+
+    public void Confirm(DateTimeOffset now)
+    {
+        if (Status == ReceiptStatus.Confirmed)
+        {
+            throw new InvalidOperationException("Receipt draft is already confirmed.");
+        }
+
+        if (Status != ReceiptStatus.Processed)
+        {
+            throw new InvalidOperationException("Only processed receipt drafts can be confirmed.");
+        }
+
+        Status = ReceiptStatus.Confirmed;
+        ConfirmedAt = now;
     }
 }

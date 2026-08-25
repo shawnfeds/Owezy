@@ -23,6 +23,8 @@ internal sealed class ReceiptConfiguration : IEntityTypeConfiguration<ReceiptRow
 
         builder.Property(r => r.CreatedAt).IsRequired();
 
+        builder.Property(r => r.ConfirmedAt).IsRequired(false);
+
         // OCR result stored as JSON string. No image binary stored in SQL.
         builder.Property(r => r.OcrResultJson)
             .IsRequired(false)

@@ -18,3 +18,29 @@ public sealed record ReceiptDraftResult(
     DateTimeOffset CreatedAt,
     OcrReceiptDraft? OcrDraft
 );
+
+public sealed record OcrLineItemDto(
+    string Description,
+    decimal? Quantity,
+    decimal? UnitPrice,
+    decimal? LineTotal,
+    decimal? Confidence
+);
+
+public sealed record UpdateReceiptDraftRequest(
+    string? MerchantName,
+    string? ReceiptDate,
+    string? Currency,
+    decimal? Subtotal,
+    decimal? Tax,
+    decimal? Discount,
+    decimal? Total,
+    IReadOnlyList<OcrLineItemDto> LineItems
+);
+
+public sealed record ConfirmReceiptResult(
+    ReceiptId ReceiptId,
+    BillId BillId,
+    DateTimeOffset ConfirmedAt,
+    IReadOnlyList<BillItemId> CreatedItemIds
+);

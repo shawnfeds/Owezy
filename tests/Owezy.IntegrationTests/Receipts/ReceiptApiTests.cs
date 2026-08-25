@@ -266,4 +266,120 @@ public class ReceiptApiTests : IClassFixture<WebApplicationFactory<Program>>
         var bill = await repo!.GetByIdAsync(new BillId(Guid.Parse(billData.BillId)));
         Assert.Empty(bill!.Items);
     }
+
+    [Fact]
+    public async Task Splitter_UpdateReceiptDraft_Returns200OK()
+    {
+        var client = CreateAuthenticatedClient(_splitterPhone);
+        var createRes = await client.PostAsJsonAsync("/bills", new { title = "Receipt Test Bill" });
+        var billData = await createRes.Content.ReadFromJsonAsync<CreateBillHttpResponse>();
+
+        using var form = CreateValidImageContent();
+        var uploadRes = await client.PostAsync($"/bills/{billData!.BillId}/receipt", form);
+        var uploadData = await uploadRes.Content.ReadFromJsonAsync<UploadReceiptHttpResponse>();
+
+        var updateRes = await client.PutAsJsonAsync($"/bills/{billData.BillId}/receipt/{uploadData!.ReceiptId}", new
+        {
+            merchantName = "Corrected Store",
+            lineItems = new[]
+            {
+                new { description = "Corrected Item", quantity = (decimal?)1, unitPrice = (decimal?)300m, lineTotal = (decimal?)300m, confidence = (decimal?)0.95m }
+            }
+        });
+
+        Assert.Equal(HttpStatusCode.OK, updateRes.StatusCode);
+        var updatedData = await updateRes.Content.ReadFromJsonAsync<ReceiptDraftHttpResponse>();
+        Assert.NotNull(updatedData);
+        Assert.Equal("Corrected Store", updatedData.OcrDraft!.MerchantName);
+        Assert.Single(updatedData.OcrDraft.LineItems);
+        Assert.Equal("Corrected Item", updatedData.OcrDraft.LineItems[0].Description);
+    }
+
+    [Fact]
+    public async Task NonSplitter_UpdateReceiptDraft_Returns403Forbidden()
+    {
+        var client = CreateAuthenticatedClient(_splitterPhone);
+        var createRes = await client.PostAsJsonAsync("/bills", new { title = "Receipt Test Bill" });
+        var billData = await createRes.Content.ReadFromJsonAsync<CreateBillHttpResponse>();
+
+        using var form = CreateValidImageContent();
+        var uploadRes = await client.PostAsync($"/bills/{billData!.BillId}/receipt", form);
+        var uploadData = await uploadRes.Content.ReadFromJsonAsync<UploadReceiptHttpResponse>();
+
+        var nonSplitterClient = CreateAuthenticatedClient(_participantPhone);
+        var updateRes = await nonSplitterClient.PutAsJsonAsync($"/bills/{billData.BillId}/receipt/{uploadData!.ReceiptId}", new
+        {
+            merchantName = "Attempted Hack"
+        });
+
+        Assert.Equal(HttpStatusCode.Forbidden, updateRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task Splitter_ConfirmReceipt_Returns200OK_CreatesBillItems()
+    {
+        var client = CreateAuthenticatedClient(_splitterPhone);
+        var createRes = await client.PostAsJsonAsync("/bills", new { title = "Receipt Test Bill" });
+        var billData = await createRes.Content.ReadFromJsonAsync<CreateBillHttpResponse>();
+
+        using var form = CreateValidImageContent();
+        var uploadRes = await client.PostAsync($"/bills/{billData!.BillId}/receipt", form);
+        var uploadData = await uploadRes.Content.ReadFromJsonAsync<UploadReceiptHttpResponse>();
+
+        var confirmRes = await client.PostAsync($"/bills/{billData.BillId}/receipt/{uploadData!.ReceiptId}/confirm", null);
+
+        Assert.Equal(HttpStatusCode.OK, confirmRes.StatusCode);
+        var confirmData = await confirmRes.Content.ReadFromJsonAsync<ConfirmReceiptHttpResponse>();
+        Assert.NotNull(confirmData);
+        Assert.Equal(uploadData.ReceiptId, confirmData.ReceiptId);
+        Assert.Single(confirmData.CreatedItemIds);
+
+        // Verify bill now contains 1 item
+        var repo = _factory.Services.GetRequiredService<IBillRepository>() as InMemoryBillRepository;
+        var bill = await repo!.GetByIdAsync(new BillId(Guid.Parse(billData.BillId)));
+        Assert.Single(bill!.Items);
+        Assert.Equal("Item 1", bill.Items.First().Description);
+    }
+
+    [Fact]
+    public async Task RepeatedConfirmReceipt_Returns409Conflict_PreventsDuplicateItems()
+    {
+        var client = CreateAuthenticatedClient(_splitterPhone);
+        var createRes = await client.PostAsJsonAsync("/bills", new { title = "Receipt Test Bill" });
+        var billData = await createRes.Content.ReadFromJsonAsync<CreateBillHttpResponse>();
+
+        using var form = CreateValidImageContent();
+        var uploadRes = await client.PostAsync($"/bills/{billData!.BillId}/receipt", form);
+        var uploadData = await uploadRes.Content.ReadFromJsonAsync<UploadReceiptHttpResponse>();
+
+        // First confirmation succeeds
+        await client.PostAsync($"/bills/{billData.BillId}/receipt/{uploadData!.ReceiptId}/confirm", null);
+
+        // Second confirmation returns 409 Conflict
+        var secondConfirmRes = await client.PostAsync($"/bills/{billData.BillId}/receipt/{uploadData.ReceiptId}/confirm", null);
+        Assert.Equal(HttpStatusCode.Conflict, secondConfirmRes.StatusCode);
+
+        // Item count remains 1
+        var repo = _factory.Services.GetRequiredService<IBillRepository>() as InMemoryBillRepository;
+        var bill = await repo!.GetByIdAsync(new BillId(Guid.Parse(billData.BillId)));
+        Assert.Single(bill!.Items);
+    }
+
+    [Fact]
+    public async Task NonSplitter_ConfirmReceipt_Returns403Forbidden()
+    {
+        var client = CreateAuthenticatedClient(_splitterPhone);
+        var createRes = await client.PostAsJsonAsync("/bills", new { title = "Receipt Test Bill" });
+        var billData = await createRes.Content.ReadFromJsonAsync<CreateBillHttpResponse>();
+
+        using var form = CreateValidImageContent();
+        var uploadRes = await client.PostAsync($"/bills/{billData!.BillId}/receipt", form);
+        var uploadData = await uploadRes.Content.ReadFromJsonAsync<UploadReceiptHttpResponse>();
+
+        var nonSplitterClient = CreateAuthenticatedClient(_participantPhone);
+        var confirmRes = await nonSplitterClient.PostAsync($"/bills/{billData.BillId}/receipt/{uploadData!.ReceiptId}/confirm", null);
+
+        Assert.Equal(HttpStatusCode.Forbidden, confirmRes.StatusCode);
+    }
 }
+

@@ -165,6 +165,166 @@ public sealed class ReceiptService : IReceiptService
         );
     }
 
+    public async Task<ReceiptDraftResult?> UpdateReceiptDraftAsync(
+        PhoneNumber callerPhoneNumber,
+        BillId billId,
+        ReceiptId receiptId,
+        UpdateReceiptDraftRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(callerPhoneNumber);
+        ArgumentNullException.ThrowIfNull(request);
+
+        var receipt = await _receiptRepository.GetByIdAsync(receiptId, cancellationToken);
+        if (receipt is null || receipt.BillId != billId)
+            return null;
+
+        var bill = await _billRepository.GetByIdAsync(billId, cancellationToken);
+        if (bill is null)
+            return null;
+
+        if (bill.SplitterPhoneNumber != callerPhoneNumber)
+            throw new UnauthorizedAccessException("Only the bill splitter can update receipt drafts.");
+
+        if (bill.IsFinalized)
+            throw new InvalidOperationException("Cannot update receipt draft for a finalized bill.");
+
+        var ocrItems = new List<OcrLineItem>();
+        if (request.LineItems != null)
+        {
+            foreach (var itemDto in request.LineItems)
+            {
+                if (string.IsNullOrWhiteSpace(itemDto.Description))
+                {
+                    throw new InvalidOperationException("Line item description cannot be empty.");
+                }
+                if (itemDto.Quantity.HasValue && itemDto.Quantity.Value <= 0m)
+                {
+                    throw new InvalidOperationException($"Quantity for item '{itemDto.Description}' must be greater than zero.");
+                }
+                if (itemDto.UnitPrice.HasValue && itemDto.UnitPrice.Value <= 0m)
+                {
+                    throw new InvalidOperationException($"Unit price for item '{itemDto.Description}' must be greater than zero.");
+                }
+                if (itemDto.LineTotal.HasValue && itemDto.LineTotal.Value <= 0m)
+                {
+                    throw new InvalidOperationException($"Line total for item '{itemDto.Description}' must be greater than zero.");
+                }
+
+                ocrItems.Add(new OcrLineItem
+                {
+                    Description = itemDto.Description.Trim(),
+                    Quantity = itemDto.Quantity,
+                    UnitPrice = itemDto.UnitPrice,
+                    LineTotal = itemDto.LineTotal,
+                    Confidence = itemDto.Confidence
+                });
+            }
+        }
+
+        var draft = new OcrReceiptDraft
+        {
+            MerchantName = request.MerchantName?.Trim(),
+            ReceiptDate = request.ReceiptDate?.Trim(),
+            Currency = request.Currency?.Trim(),
+            Subtotal = request.Subtotal,
+            Tax = request.Tax,
+            Discount = request.Discount,
+            Total = request.Total,
+            LineItems = ocrItems
+        };
+
+        var normalizedDraft = OcrDraftNormalizer.Normalize(draft);
+        receipt.UpdateDraft(normalizedDraft);
+
+        await _receiptRepository.UpdateAsync(receipt, cancellationToken);
+
+        return new ReceiptDraftResult(
+            receipt.Id,
+            receipt.BillId,
+            receipt.Status,
+            receipt.CreatedAt,
+            receipt.OcrDraft
+        );
+    }
+
+    public async Task<ConfirmReceiptResult> ConfirmReceiptAsync(
+        PhoneNumber callerPhoneNumber,
+        BillId billId,
+        ReceiptId receiptId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(callerPhoneNumber);
+
+        var receipt = await _receiptRepository.GetByIdAsync(receiptId, cancellationToken);
+        if (receipt is null || receipt.BillId != billId)
+            throw new KeyNotFoundException($"Receipt with ID '{receiptId}' was not found for bill '{billId}'.");
+
+        var bill = await _billRepository.GetByIdAsync(billId, cancellationToken);
+        if (bill is null)
+            throw new KeyNotFoundException($"Bill with ID '{billId}' was not found.");
+
+        if (bill.SplitterPhoneNumber != callerPhoneNumber)
+            throw new UnauthorizedAccessException("Only the bill splitter can confirm receipts.");
+
+        if (bill.IsFinalized)
+            throw new InvalidOperationException("Cannot confirm receipt for a finalized bill.");
+
+        if (receipt.Status == ReceiptStatus.Confirmed)
+            throw new InvalidOperationException("Receipt draft has already been confirmed.");
+
+        if (receipt.Status != ReceiptStatus.Processed || receipt.OcrDraft is null)
+            throw new InvalidOperationException("Only processed receipt drafts with extracted data can be confirmed.");
+
+        var normalizedDraft = OcrDraftNormalizer.Normalize(receipt.OcrDraft);
+        if (normalizedDraft.LineItems.Count == 0)
+            throw new InvalidOperationException("Receipt draft must contain at least one line item to confirm.");
+
+        foreach (var item in normalizedDraft.LineItems)
+        {
+            if (string.IsNullOrWhiteSpace(item.Description))
+            {
+                throw new InvalidOperationException("Every confirmed line item requires a non-empty description.");
+            }
+
+            if (!item.LineTotal.HasValue || item.LineTotal.Value <= 0m)
+            {
+                throw new InvalidOperationException($"Line item '{item.Description}' requires a valid positive line amount to confirm.");
+            }
+        }
+
+        var createdItemIds = new List<BillItemId>();
+
+        foreach (var item in normalizedDraft.LineItems)
+        {
+            int qty = item.Quantity.HasValue && item.Quantity.Value > 0m
+                ? (int)Math.Floor(item.Quantity.Value)
+                : 1;
+
+            var createdItem = bill.AddItem(
+                item.Description,
+                qty,
+                item.LineTotal!.Value,
+                Enumerable.Empty<ParticipantId>()
+            );
+
+            createdItemIds.Add(createdItem.Id);
+        }
+
+        await _billRepository.UpdateAsync(bill, cancellationToken);
+
+        var now = _dateTimeProvider.UtcNow;
+        receipt.Confirm(now);
+        await _receiptRepository.UpdateAsync(receipt, cancellationToken);
+
+        return new ConfirmReceiptResult(
+            receipt.Id,
+            receipt.BillId,
+            receipt.ConfirmedAt!.Value,
+            createdItemIds
+        );
+    }
+
     private static bool IsValidImageHeader(byte[] header, int bytesRead)
     {
         if (bytesRead < 3) return false;

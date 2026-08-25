@@ -7,6 +7,7 @@ public sealed class ReceiptRow
     public string StorageKey { get; set; } = string.Empty;
     public int Status { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? ConfirmedAt { get; set; }
 
     /// <summary>
     /// JSON-serialised OcrReceiptDraft. Null if OCR has not yet run or failed.

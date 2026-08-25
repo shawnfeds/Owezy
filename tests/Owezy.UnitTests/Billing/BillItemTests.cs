@@ -70,12 +70,14 @@ public class BillItemTests
     }
 
     [Fact]
-    public void AddItem_EmptySharers_ThrowsArgumentException()
+    public void AddItem_EmptySharers_Succeeds()
     {
         var bill = Bill.Create("Dinner", _splitterPhone, _now);
 
-        Assert.Throws<ArgumentException>(() =>
-            bill.AddItem("Salad", 1, 200m, Array.Empty<ParticipantId>()));
+        var item = bill.AddItem("Salad", 1, 200m, Array.Empty<ParticipantId>());
+
+        Assert.NotNull(item);
+        Assert.Empty(item.SharerParticipantIds);
     }
 
     [Fact]

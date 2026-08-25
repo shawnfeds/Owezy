@@ -56,6 +56,7 @@ public sealed class SqlReceiptRepository : IReceiptRepository
         }
 
         existingRow.Status = (int)receipt.Status;
+        existingRow.ConfirmedAt = receipt.ConfirmedAt;
         existingRow.OcrResultJson = receipt.OcrDraft is null
             ? null
             : JsonSerializer.Serialize(receipt.OcrDraft, JsonOpts);
@@ -72,6 +73,7 @@ public sealed class SqlReceiptRepository : IReceiptRepository
             StorageKey = receipt.StorageKey,
             Status = (int)receipt.Status,
             CreatedAt = receipt.CreatedAt,
+            ConfirmedAt = receipt.ConfirmedAt,
             OcrResultJson = receipt.OcrDraft is null
                 ? null
                 : JsonSerializer.Serialize(receipt.OcrDraft, JsonOpts)
@@ -99,6 +101,7 @@ public sealed class SqlReceiptRepository : IReceiptRepository
             row.StorageKey,
             (ReceiptStatus)row.Status,
             row.CreatedAt,
+            row.ConfirmedAt,
             ocrDraft
         );
     }

@@ -28,7 +28,7 @@ Domain ← Application ← Infrastructure ← API
 
 OTP-based + JWT Access Token authentication.
 
-Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tracking, Settlement & Receipt Capture / OCR:
+Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tracking, Settlement, Receipt Capture & OCR Review/Confirmation:
 - `Bill` aggregate: `Id`, `Title`, `SplitterPhoneNumber`, `CreatedAt`, `Status` (`Active`/`Finalized`), `FinalizedAt`, `Participants`, `Items`, `AccessLinks`
 - `EqualSplitCalculator`: largest-remainder rounding, deterministic by `ParticipantId ASC`. Shares are derived, NOT persisted.
 - Bill Lifecycle (`OPEN` → `FINALIZED`): at least 1 participant + 1 item required.
@@ -36,12 +36,15 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tr
 - Payment Tracking: self-reported `Unpaid/Paid` status on `BillParticipant`. Server-timestamped `PaidAt`. Idempotent mark-paid.
 - Settlement: read-only derived calculation (TotalOwed, TotalPaid, TotalRemaining, per-participant state). Splitter-visible only. No DB changes.
 - Receipt Capture & OCR Foundation:
-  - `Receipt` aggregate: `Id`, `BillId`, `StorageKey`, `Status` (`Created`/`Processed`/`Failed`), `CreatedAt`, `OcrDraft`.
+  - `Receipt` aggregate: `Id`, `BillId`, `StorageKey`, `Status` (`Created`/`Processed`/`Failed`/`Confirmed`), `CreatedAt`, `ConfirmedAt`, `OcrDraft`.
   - `IOcrService` abstraction wrapping local/free Tesseract OCR.
   - `IReceiptStorage` abstraction storing files on local filesystem using server-generated GUID keys.
-  - Synchronous OCR producing an isolated `OcrReceiptDraft`.
-  - `OcrDraftNormalizer`: derives `LineTotal = Quantity * UnitPrice` when `LineTotal` is missing. Preserves existing detected `LineTotal`.
-  - Strictly isolated from billing: OCR NEVER automatically modifies `Bill`, `BillItems`, or payment state. User review required in future milestone.
+- OCR Review & Confirmation:
+  - Splitter can review and edit/correct OCR drafts while bill is OPEN (`PUT /bills/{billId}/receipt/{receiptId}`).
+  - Explicit confirmation (`POST /bills/{billId}/receipt/{receiptId}/confirm`) converts validated OCR line items into actual `BillItems` on the `Bill` aggregate.
+  - OCR line items created with NO auto-assigned sharers (sharer assignment is done separately by splitter).
+  - Confirmation is idempotent / prevents duplicate `BillItems`.
+  - Finalized bills cannot be modified through OCR confirmation.
 
 ## Endpoints
 
@@ -56,6 +59,8 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tr
 - `GET  /bills/{billId}/settlement` → `200 OK` (JWT auth, splitter)
 - `POST /bills/{billId}/receipt` → `201 Created` (JWT auth, splitter, image upload)
 - `GET  /bills/{billId}/receipt/{receiptId}` → `200 OK` (JWT auth, splitter)
+- `PUT  /bills/{billId}/receipt/{receiptId}` → `200 OK` (JWT auth, splitter, edit OCR draft)
+- `POST /bills/{billId}/receipt/{receiptId}/confirm` → `200 OK` (JWT auth, splitter, creates BillItems)
 - `GET  /participant-access/{token}` → `200 OK` (AllowAnonymous)
 - `POST /participant-access/{token}/payment` → `200 OK` (AllowAnonymous)
 
@@ -63,7 +68,7 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tr
 
 **Tables**: `OtpChallenges`, `Bills`, `BillParticipants`, `BillItems`, `BillItemSharers`, `ParticipantAccessLinks`, `Receipts`
 
-- `Receipts` columns: `Id`, `BillId`, `StorageKey`, `Status`, `CreatedAt`, `OcrResultJson` (nvarchar max). No image binary in SQL.
+- `Receipts` columns: `Id`, `BillId`, `StorageKey`, `Status`, `CreatedAt`, `ConfirmedAt`, `OcrResultJson`. No image binary in SQL.
 
 ## Completed Milestones
 
@@ -77,7 +82,8 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tr
 - **Payment Tracking** — COMPLETE
 - **Settlement & Final Balance** — COMPLETE
 - **Receipt Capture & OCR Foundation** — COMPLETE
+- **OCR Review & Confirmation** — COMPLETE
 
 ## Not Yet Implemented
 
-OCR user review/confirmation to BillItems, UPI link generation, debt simplification, notifications, QR codes, payment gateways.
+UPI link generation, debt simplification, notifications, QR codes, payment gateways.
