@@ -28,7 +28,7 @@ Domain ← Application ← Infrastructure ← API
 
 OTP-based + JWT Access Token authentication.
 
-Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tracking, Settlement, Receipt Capture & OCR Review/Confirmation, Sharer Assignment & End-to-End Audit Hardening:
+Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tracking, Settlement, Receipt Capture & OCR Review/Confirmation, Sharer Assignment & API Hardening:
 - `Bill` aggregate: `Id`, `Title`, `SplitterPhoneNumber`, `CreatedAt`, `Status` (`Active`/`Finalized`), `FinalizedAt`, `Participants`, `Items`, `AccessLinks`
 - `EqualSplitCalculator`: largest-remainder rounding, deterministic by `ParticipantId ASC`. Shares are derived, NOT persisted.
 - Bill Lifecycle (`OPEN` → `FINALIZED`): requires at least 1 participant, at least 1 item, and EVERY item must have at least 1 sharer.
@@ -46,9 +46,10 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tr
   - Splitter can replace/update the sharer list for any `BillItem` while bill is OPEN (`PUT /bills/{billId}/items/{itemId}/sharers`).
   - Items can temporarily have 0 sharers after OCR confirmation, but bill finalization blocks if ANY item has zero sharers.
   - Cross-bill participant IDs, duplicate sharer IDs, and non-splitter modifications are strictly rejected.
-- Audit & Hardening:
-  - `SqlBillRepository.UpdateAsync` persistence defect fixed to sync sharers for existing items.
-  - Full end-to-end integration audit verified: complete lifecycle flow from creation, OCR, confirmation, sharers, finalization, access links, self-payment, group settlement to post-finalization immutability.
+- API Contract & Error-Handling Hardening:
+  - Consistent HTTP error semantics (400, 401, 403, 404, 409, 500).
+  - Sanitized internal error responses (no stack traces, connection strings, or secret leaks).
+  - Verified authorization boundaries and finalized bill mutation protections.
 
 ## Endpoints
 
@@ -73,8 +74,6 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tr
 
 **Tables**: `OtpChallenges`, `Bills`, `BillParticipants`, `BillItems`, `BillItemSharers`, `ParticipantAccessLinks`, `Receipts`
 
-- Existing `BillItemSharers` table reused and verified with `SqlBillRepository`.
-
 ## Completed Milestones
 
 - **1.1–1.6** Authentication — COMPLETE
@@ -90,6 +89,7 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tr
 - **OCR Review & Confirmation** — COMPLETE
 - **Sharer Assignment & Final Bill Composition** — COMPLETE
 - **End-to-End Billing Consistency Audit & Hardening** — COMPLETE
+- **API Contract & Error-Handling Hardening** — COMPLETE
 
 ## Not Yet Implemented
 
