@@ -123,6 +123,19 @@ public sealed class SqlBillRepository : IBillRepository
                 };
                 existingRow.Items.Add(newItemRow);
             }
+            else
+            {
+                // Sync sharers for existing item
+                existingItem.Sharers.Clear();
+                foreach (var sharerId in item.SharerParticipantIds)
+                {
+                    existingItem.Sharers.Add(new BillItemSharerRow
+                    {
+                        ItemId = item.Id.Value,
+                        ParticipantId = sharerId.Value
+                    });
+                }
+            }
         }
 
         // Sync access links
