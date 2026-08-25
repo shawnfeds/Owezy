@@ -6,7 +6,10 @@ using Microsoft.IdentityModel.Tokens;
 using Owezy.Application.Auth;
 using Owezy.Application.Billing;
 using Owezy.Application.Common;
+using Owezy.Application.Receipts;
+using Owezy.Infrastructure.Ocr;
 using Owezy.Infrastructure.Persistence;
+using Owezy.Infrastructure.Storage;
 
 namespace Owezy.Api;
 
@@ -23,6 +26,9 @@ public static class ServiceRegistration
 
         services.AddScoped<IOtpChallengeRepository, SqlOtpChallengeRepository>();
         services.AddScoped<IBillRepository, SqlBillRepository>();
+        services.AddScoped<IReceiptRepository, SqlReceiptRepository>();
+        services.AddSingleton<IReceiptStorage, LocalFileReceiptStorage>();
+        services.AddSingleton<IOcrService, TesseractOcrService>();
 
         return services;
     }
@@ -56,6 +62,7 @@ public static class ServiceRegistration
         // Application services
         services.AddScoped<IOtpService, OtpService>();
         services.AddScoped<IBillService, BillService>();
+        services.AddScoped<IReceiptService, ReceiptService>();
 
         return services;
     }

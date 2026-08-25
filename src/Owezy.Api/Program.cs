@@ -1,6 +1,7 @@
 using Owezy.Api;
 using Owezy.Api.Auth;
 using Owezy.Api.Billing;
+using Owezy.Api.Receipts;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,7 @@ app.UseAuthorization();
 
 app.MapOtpEndpoints();
 app.MapBillEndpoints();
+app.MapReceiptEndpoints();
 
 app.Run();
 

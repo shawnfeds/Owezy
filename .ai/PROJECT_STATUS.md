@@ -28,13 +28,20 @@ Domain ← Application ← Infrastructure ← API
 
 OTP-based + JWT Access Token authentication.
 
-Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tracking & Settlement:
+Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tracking, Settlement & Receipt Capture / OCR:
 - `Bill` aggregate: `Id`, `Title`, `SplitterPhoneNumber`, `CreatedAt`, `Status` (`Active`/`Finalized`), `FinalizedAt`, `Participants`, `Items`, `AccessLinks`
 - `EqualSplitCalculator`: largest-remainder rounding, deterministic by `ParticipantId ASC`. Shares are derived, NOT persisted.
 - Bill Lifecycle (`OPEN` → `FINALIZED`): at least 1 participant + 1 item required.
 - Participant Access: finalized-only, 256-bit opaque tokens, SHA-256 hash stored.
 - Payment Tracking: self-reported `Unpaid/Paid` status on `BillParticipant`. Server-timestamped `PaidAt`. Idempotent mark-paid.
 - Settlement: read-only derived calculation (TotalOwed, TotalPaid, TotalRemaining, per-participant state). Splitter-visible only. No DB changes.
+- Receipt Capture & OCR Foundation:
+  - `Receipt` aggregate: `Id`, `BillId`, `StorageKey`, `Status` (`Created`/`Processed`/`Failed`), `CreatedAt`, `OcrDraft`.
+  - `IOcrService` abstraction wrapping local/free Tesseract OCR.
+  - `IReceiptStorage` abstraction storing files on local filesystem using server-generated GUID keys.
+  - Synchronous OCR producing an isolated `OcrReceiptDraft`.
+  - `OcrDraftNormalizer`: derives `LineTotal = Quantity * UnitPrice` when `LineTotal` is missing. Preserves existing detected `LineTotal`.
+  - Strictly isolated from billing: OCR NEVER automatically modifies `Bill`, `BillItems`, or payment state. User review required in future milestone.
 
 ## Endpoints
 
@@ -47,15 +54,16 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tr
 - `POST /bills/{billId}/participants/{participantId}/access-link` → `200 OK` (JWT auth, splitter)
 - `GET  /bills/{billId}/payments` → `200 OK` (JWT auth, splitter)
 - `GET  /bills/{billId}/settlement` → `200 OK` (JWT auth, splitter)
+- `POST /bills/{billId}/receipt` → `201 Created` (JWT auth, splitter, image upload)
+- `GET  /bills/{billId}/receipt/{receiptId}` → `200 OK` (JWT auth, splitter)
 - `GET  /participant-access/{token}` → `200 OK` (AllowAnonymous)
 - `POST /participant-access/{token}/payment` → `200 OK` (AllowAnonymous)
 
 ## Persistence
 
-**Tables**: `OtpChallenges`, `Bills`, `BillParticipants`, `BillItems`, `BillItemSharers`, `ParticipantAccessLinks`
+**Tables**: `OtpChallenges`, `Bills`, `BillParticipants`, `BillItems`, `BillItemSharers`, `ParticipantAccessLinks`, `Receipts`
 
-- `BillParticipants` columns: `PaymentStatus` (int, default 1), `PaidAt` (nullable datetime)
-- No settlement or balance tables.
+- `Receipts` columns: `Id`, `BillId`, `StorageKey`, `Status`, `CreatedAt`, `OcrResultJson` (nvarchar max). No image binary in SQL.
 
 ## Completed Milestones
 
@@ -68,7 +76,8 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tr
 - **Participant Access & Sharing** — COMPLETE
 - **Payment Tracking** — COMPLETE
 - **Settlement & Final Balance** — COMPLETE
+- **Receipt Capture & OCR Foundation** — COMPLETE
 
 ## Not Yet Implemented
 
-OCR pipeline, UPI link generation, debt simplification, notifications, QR codes, payment gateways.
+OCR user review/confirmation to BillItems, UPI link generation, debt simplification, notifications, QR codes, payment gateways.
