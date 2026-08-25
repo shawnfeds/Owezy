@@ -1,48 +1,36 @@
-# Handoff — Payment Tracking Complete
+# Handoff — Settlement & Final Balance Complete
 
-## Current State
+## State
 
-Payment Tracking milestone is complete.
+Settlement & Final Balance milestone is complete. Working tree clean.
 
-## Capabilities Implemented
+## What Was Added
 
-- Domain Layer (`Owezy.Domain.Billing`):
-  - `PaymentStatus` (`Unpaid = 1`, `Paid = 2`) enum.
-  - `Participant` updated with `PaymentStatus`, `PaidAt`, and `MarkPaid(now)` method (idempotent, server timestamped).
-  - `Bill.MarkParticipantPaid(participantId, now)`: Finalized bill requirement enforced; participant membership validated.
-- Application Layer (`Owezy.Application.Billing`):
-  - `MarkParticipantPaidByTokenAsync`: Allows participant to mark self paid using opaque access token.
-  - `GetSplitterBillPaymentsAsync`: Authenticated splitter-only operation retrieving group payment status and derived amounts owed.
-  - Updated `ParticipantBillViewResult` to include participant's own payment status and `PaidAt`.
-- Infrastructure Layer (`Owezy.Infrastructure`):
-  - `BillParticipantRow` updated with `PaymentStatus` (default `1`) and `PaidAt`.
-  - `BillParticipantConfiguration` updated with EF Core properties.
-  - Mappings updated in `SqlBillRepository`.
-  - EF Core migration `AddParticipantPaymentStatus`.
-- API Layer (`Owezy.Api.Billing`):
-  - `POST /participant-access/{token}/payment`: Token credential endpoint (`200 OK` or `404 Not Found`).
-  - `GET /bills/{billId}/payments`: Splitter-only endpoint (`200 OK`, `401 Unauthorized`, `403 Forbidden`, `409 Conflict` if OPEN).
-  - Updated `GET /participant-access/{token}` response payload with `paymentStatus` and `paidAt`.
+- `src/Owezy.Application/Billing/SettlementDtos.cs` — `ParticipantSettlementDto`, `BillSettlementResult`
+- `IBillService.GetBillSettlementAsync` + implementation in `BillService`
+- `GET /bills/{billId}/settlement` — authenticated splitter endpoint
+- API DTOs: `ParticipantSettlementHttpResponse`, `BillSettlementHttpResponse`
+- Unit tests: `SettlementServiceTests.cs` (11 tests)
+- Integration tests: `SettlementApiTests.cs` (8 tests)
 
-## Verification
+## Settlement Properties
 
-| Check | Result |
-|---|---|
-| Build | PASS (0 warnings, 0 errors) |
-| Unit tests | 135/135 PASS |
-| Architecture tests | 4/4 PASS |
-| Integration & API tests | 47/47 PASS |
-| Total test suite | 186/186 PASS |
-| Working tree | CLEAN (after commit) |
+- **Derived** — calculated from Bill + Participants + Items + PaymentStatus
+- **Read-only** — does not mutate any state
+- **Splitter-visible only** — participants cannot access group settlement
+- **Participant-private** — participant view still shows only own data
+- **Finalized-only** — OPEN bills return 409
+- **Exact money conservation** — TotalOwed == TotalPaid + TotalRemaining (always)
+- **No persistence** — no new tables or columns
 
-## Security & Scope Boundary
+## Test Results
 
-- Payment is self-reported status tracking only (no payment processing, gateways, or settlement).
-- Participant can mark ONLY themselves paid via token.
-- Participant sees ONLY their own status in the participant view.
-- Splitter sees group payment status for their own finalized bill only.
-- OPEN bills reject all payment tracking operations.
-- Payment amounts continue to be derived from `EqualSplitCalculator`.
+| Suite | Pass | Total |
+|---|---|---|
+| Unit | 146 | 146 |
+| Integration/API | 56 | 56 |
+| Architecture | 4 | 4 |
+| **Total** | **206** | **206** |
 
 ## Next
 

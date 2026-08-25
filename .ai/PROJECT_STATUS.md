@@ -24,66 +24,42 @@ Domain ← Application ← Infrastructure ← API
 - Entity Framework Core
 - SQL Server
 
-## Authentication, Bill Domain, Participant Access & Payment Tracking
+## Capabilities
 
 OTP-based + JWT Access Token authentication.
 
-Bill, Participant, Items, Calculation, Lifecycle, Participant Access & Payment Tracking Domain:
-- `Bill` aggregate: `Id`, `Title`, `SplitterPhoneNumber`, `CreatedAt`, `Status` (`Active` / `Finalized`), `FinalizedAt`, `Participants`, `Items`, `AccessLinks`
-- Splitter automatically added as initial participant
-- Duplicate participant phone numbers rejected within a bill
-- `BillItem`: `Id`, `BillId`, `Description`, `Quantity` (>0), `Amount` (>0 exact decimal total line-item amount), `SharerParticipantIds`
-- `EqualSplitCalculator`: Pure domain service implementing equal-share division with largest-remainder rounding and deterministic tie-breaking by `ParticipantId ASC`
-- Calculated shares are derived and NOT persisted
-- Bill Lifecycle (`OPEN` -> `FINALIZED`):
-  - An OPEN bill can receive new participants and items.
-  - Finalization requires at least one participant and at least one item.
-  - A FINALIZED bill is permanently immutable: adding participants/items returns 409 Conflict.
-- Participant Access & Sharing:
-  - Participant links available ONLY after a bill is FINALIZED.
-  - Generated using 256-bit cryptographically random opaque tokens.
-  - Raw tokens are NEVER persisted; only SHA-256 hashes (`TokenHash`) are stored in `ParticipantAccessLinks` table.
-  - Participant view (`GET /participant-access/{token}`) is strictly participant-scoped (shows only that participant's items, total owed, payment status, and bill overview; no cross-participant info).
-- Payment Tracking (Self-reported status on finalized bills only):
-  - `PaymentStatus` (`Unpaid` / `Paid`), `PaidAt` timestamp on `BillParticipant`.
-  - Participant marks self paid via opaque access token (`POST /participant-access/{token}/payment`). Idempotent.
-  - Splitter views group payment status (`GET /bills/{billId}/payments`, requires JWT auth).
-  - Payment amounts continue to be derived from `EqualSplitCalculator`. No actual payment processing or gateways.
-- Database persistence: `Bills`, `BillParticipants`, `BillItems`, `BillItemSharers`, and `ParticipantAccessLinks` tables
-- Endpoints:
-  - `POST /auth/otp/request` → `202 Accepted`
-  - `POST /auth/otp/verify` → `200 OK` (`accessToken`)
-  - `POST /bills` → `201 Created` (Requires JWT auth, uses token `sub` for splitter identity)
-  - `POST /bills/{billId}/participants` → `200 OK` (Requires JWT auth, caller must be bill member)
-  - `POST /bills/{billId}/items` → `201 Created` (Requires JWT auth, caller must be authenticated splitter)
-  - `POST /bills/{billId}/finalize` → `200 OK` (Requires JWT auth, caller must be authenticated splitter)
-  - `POST /bills/{billId}/participants/{participantId}/access-link` → `200 OK` (Requires JWT auth, caller must be authenticated splitter)
-  - `GET /participant-access/{token}` → `200 OK` (AllowAnonymous, token credential)
-  - `POST /participant-access/{token}/payment` → `200 OK` (AllowAnonymous, token credential)
-  - `GET /bills/{billId}/payments` → `200 OK` (Requires JWT auth, caller must be authenticated splitter)
+Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tracking & Settlement:
+- `Bill` aggregate: `Id`, `Title`, `SplitterPhoneNumber`, `CreatedAt`, `Status` (`Active`/`Finalized`), `FinalizedAt`, `Participants`, `Items`, `AccessLinks`
+- `EqualSplitCalculator`: largest-remainder rounding, deterministic by `ParticipantId ASC`. Shares are derived, NOT persisted.
+- Bill Lifecycle (`OPEN` → `FINALIZED`): at least 1 participant + 1 item required.
+- Participant Access: finalized-only, 256-bit opaque tokens, SHA-256 hash stored.
+- Payment Tracking: self-reported `Unpaid/Paid` status on `BillParticipant`. Server-timestamped `PaidAt`. Idempotent mark-paid.
+- Settlement: read-only derived calculation (TotalOwed, TotalPaid, TotalRemaining, per-participant state). Splitter-visible only. No DB changes.
+
+## Endpoints
+
+- `POST /auth/otp/request` → `202 Accepted`
+- `POST /auth/otp/verify` → `200 OK` (`accessToken`)
+- `POST /bills` → `201 Created` (JWT auth)
+- `POST /bills/{billId}/participants` → `200 OK` (JWT auth, splitter)
+- `POST /bills/{billId}/items` → `201 Created` (JWT auth, splitter)
+- `POST /bills/{billId}/finalize` → `200 OK` (JWT auth, splitter)
+- `POST /bills/{billId}/participants/{participantId}/access-link` → `200 OK` (JWT auth, splitter)
+- `GET  /bills/{billId}/payments` → `200 OK` (JWT auth, splitter)
+- `GET  /bills/{billId}/settlement` → `200 OK` (JWT auth, splitter)
+- `GET  /participant-access/{token}` → `200 OK` (AllowAnonymous)
+- `POST /participant-access/{token}/payment` → `200 OK` (AllowAnonymous)
 
 ## Persistence
 
-**Tables**:
-- `OtpChallenges`
-- `Bills`
-- `BillParticipants`
-- `BillItems`
-- `BillItemSharers`
-- `ParticipantAccessLinks`
+**Tables**: `OtpChallenges`, `Bills`, `BillParticipants`, `BillItems`, `BillItemSharers`, `ParticipantAccessLinks`
 
-- SQL Server + EF Core. Repositories in `Infrastructure`.
-- Application contracts: `IOtpChallengeRepository`, `IBillRepository`
-- Implementations: `SqlOtpChallengeRepository`, `SqlBillRepository`
+- `BillParticipants` columns: `PaymentStatus` (int, default 1), `PaidAt` (nullable datetime)
+- No settlement or balance tables.
 
 ## Completed Milestones
 
-- **1.1** Authentication Domain Foundation — COMPLETE
-- **1.2** OTP Domain & Service Contracts — COMPLETE
-- **1.3** OTP SQL Server Persistence — COMPLETE
-- **1.4** OTP Authentication Workflow — COMPLETE
-- **1.5** Authentication API Boundary — COMPLETE
-- **1.6** Access Token Issuance — COMPLETE
+- **1.1–1.6** Authentication — COMPLETE
 - **1.7** Bill & Participant Domain Foundation — COMPLETE
 - **1.8** Bill Items & Sharer Definitions — COMPLETE
 - **1.9** Authoritative Split Calculation Engine — COMPLETE
@@ -91,13 +67,8 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access & Payment T
 - **2.0.1** Finalization Participant Invariant Fix — COMPLETE
 - **Participant Access & Sharing** — COMPLETE
 - **Payment Tracking** — COMPLETE
-
-## Current Milestone
-
-Next Phase — see `CURRENT_TASK.md` for objective.
+- **Settlement & Final Balance** — COMPLETE
 
 ## Not Yet Implemented
 
-OCR pipeline, UPI link generation, settlement, notifications, QR codes, payment gateways.
-
-Do not expand into these areas unless explicitly instructed.
+OCR pipeline, UPI link generation, debt simplification, notifications, QR codes, payment gateways.

@@ -424,4 +424,81 @@ public sealed class BillService : IBillService
             participantPayments
         );
     }
+
+    public async Task<BillSettlementResult> GetBillSettlementAsync(
+        PhoneNumber callerPhoneNumber,
+        BillId billId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(callerPhoneNumber);
+        if (billId.Value == Guid.Empty)
+        {
+            throw new ArgumentException("BillId cannot be empty.", nameof(billId));
+        }
+
+        var bill = await _billRepository.GetByIdAsync(billId, cancellationToken);
+        if (bill is null)
+        {
+            throw new KeyNotFoundException($"Bill with ID '{billId}' was not found.");
+        }
+
+        if (bill.SplitterPhoneNumber != callerPhoneNumber)
+        {
+            throw new UnauthorizedAccessException("Only the bill splitter can request the settlement summary.");
+        }
+
+        if (!bill.IsFinalized)
+        {
+            throw new InvalidOperationException("Settlement is only available for finalized bills.");
+        }
+
+        decimal billTotalAmount = bill.Items.Sum(i => i.Amount);
+        var participantSettlements = new List<ParticipantSettlementDto>();
+
+        foreach (var participant in bill.Participants)
+        {
+            // Derive this participant's calculated share
+            decimal amountOwed = 0m;
+            foreach (var item in bill.Items)
+            {
+                if (item.SharerParticipantIds.Contains(participant.Id))
+                {
+                    var shares = EqualSplitCalculator.Calculate(item.Amount, item.SharerParticipantIds);
+                    var share = shares.First(s => s.ParticipantId == participant.Id);
+                    amountOwed += share.Amount;
+                }
+            }
+
+            var amountPaid = participant.PaymentStatus == PaymentStatus.Paid ? amountOwed : 0m;
+            var amountRemaining = amountOwed - amountPaid;
+
+            participantSettlements.Add(new ParticipantSettlementDto(
+                participant.Id,
+                participant.PhoneNumber,
+                amountOwed,
+                amountPaid,
+                amountRemaining,
+                participant.PaymentStatus
+            ));
+        }
+
+        var totalOwed = participantSettlements.Sum(p => p.AmountOwed);
+        var totalPaid = participantSettlements.Sum(p => p.AmountPaid);
+        var totalRemaining = participantSettlements.Sum(p => p.AmountRemaining);
+        var paidCount = participantSettlements.Count(p => p.PaymentStatus == PaymentStatus.Paid);
+        var unpaidCount = participantSettlements.Count(p => p.PaymentStatus == PaymentStatus.Unpaid);
+
+        return new BillSettlementResult(
+            bill.Id,
+            bill.Title,
+            billTotalAmount,
+            totalOwed,
+            totalPaid,
+            totalRemaining,
+            participantSettlements.Count,
+            paidCount,
+            unpaidCount,
+            participantSettlements
+        );
+    }
 }

@@ -90,3 +90,25 @@ public sealed record SplitterBillPaymentsHttpResponse(
     decimal BillTotalAmount,
     List<ParticipantPaymentStatusHttpResponse> ParticipantPayments
 );
+
+public sealed record ParticipantSettlementHttpResponse(
+    string ParticipantId,
+    string PhoneNumber,
+    decimal AmountOwed,
+    decimal AmountPaid,
+    decimal AmountRemaining,
+    string PaymentStatus
+);
+
+public sealed record BillSettlementHttpResponse(
+    string BillId,
+    string BillTitle,
+    decimal BillTotalAmount,
+    decimal TotalOwed,
+    decimal TotalPaid,
+    decimal TotalRemaining,
+    int ParticipantCount,
+    int PaidCount,
+    int UnpaidCount,
+    List<ParticipantSettlementHttpResponse> Participants
+);

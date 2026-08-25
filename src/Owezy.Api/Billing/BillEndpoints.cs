@@ -31,6 +31,9 @@ public static class BillEndpoints
         group.MapGet("/{billId}/payments", HandleGetSplitterBillPaymentsAsync)
             .WithName("GetSplitterBillPayments");
 
+        group.MapGet("/{billId}/settlement", HandleGetBillSettlementAsync)
+            .WithName("GetBillSettlement");
+
         app.MapGet("/participant-access/{token}", HandleGetParticipantViewAsync)
             .AllowAnonymous()
             .WithName("GetParticipantView");
@@ -475,6 +478,71 @@ public static class BillEndpoints
                 p.AmountOwed,
                 p.PaymentStatus.ToString(),
                 p.PaidAt
+            )).ToList()
+        );
+
+        return Results.Ok(response);
+    }
+
+    private static async Task<IResult> HandleGetBillSettlementAsync(
+        string billId,
+        ClaimsPrincipal user,
+        IBillService billService,
+        CancellationToken cancellationToken)
+    {
+        var authenticatedPhone = GetAuthenticatedPhoneNumber(user);
+        if (authenticatedPhone is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        if (!Guid.TryParse(billId, out var billGuid))
+        {
+            return Results.BadRequest(new ApiError("invalid_bill_id", "billId must be a valid GUID."));
+        }
+
+        BillSettlementResult result;
+        try
+        {
+            result = await billService.GetBillSettlementAsync(
+                authenticatedPhone,
+                new BillId(billGuid),
+                cancellationToken);
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound(new ApiError("bill_not_found", "The specified bill was not found."));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Results.Json(new ApiError("unauthorized", ex.Message), statusCode: 403);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Json(new ApiError("bill_not_finalized", ex.Message), statusCode: 409);
+        }
+        catch (Exception)
+        {
+            return Results.Problem("An error occurred while retrieving the settlement summary.", statusCode: 500);
+        }
+
+        var response = new BillSettlementHttpResponse(
+            result.BillId.Value.ToString(),
+            result.BillTitle,
+            result.BillTotalAmount,
+            result.TotalOwed,
+            result.TotalPaid,
+            result.TotalRemaining,
+            result.ParticipantCount,
+            result.PaidCount,
+            result.UnpaidCount,
+            result.Participants.Select(p => new ParticipantSettlementHttpResponse(
+                p.ParticipantId.Value.ToString(),
+                p.PhoneNumber.Value,
+                p.AmountOwed,
+                p.AmountPaid,
+                p.AmountRemaining,
+                p.PaymentStatus.ToString()
             )).ToList()
         );
 

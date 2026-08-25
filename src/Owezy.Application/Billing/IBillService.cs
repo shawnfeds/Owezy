@@ -14,4 +14,5 @@ public interface IBillService
     Task<ParticipantBillViewResult?> GetParticipantViewAsync(string rawToken, CancellationToken cancellationToken = default);
     Task<MarkParticipantPaidResult?> MarkParticipantPaidByTokenAsync(string rawToken, CancellationToken cancellationToken = default);
     Task<SplitterBillPaymentsResult> GetSplitterBillPaymentsAsync(PhoneNumber callerPhoneNumber, BillId billId, CancellationToken cancellationToken = default);
+    Task<BillSettlementResult> GetBillSettlementAsync(PhoneNumber callerPhoneNumber, BillId billId, CancellationToken cancellationToken = default);
 }
