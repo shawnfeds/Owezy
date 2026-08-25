@@ -65,5 +65,28 @@ public sealed record ParticipantBillViewHttpResponse(
     string ParticipantId,
     string ParticipantPhoneNumber,
     decimal TotalAmountOwed,
+    string PaymentStatus,
+    DateTimeOffset? PaidAt,
     List<ParticipantItemShareHttpResponse> Items
+);
+
+public sealed record MarkParticipantPaidHttpResponse(
+    string ParticipantId,
+    string PaymentStatus,
+    DateTimeOffset? PaidAt
+);
+
+public sealed record ParticipantPaymentStatusHttpResponse(
+    string ParticipantId,
+    string PhoneNumber,
+    decimal AmountOwed,
+    string PaymentStatus,
+    DateTimeOffset? PaidAt
+);
+
+public sealed record SplitterBillPaymentsHttpResponse(
+    string BillId,
+    string BillTitle,
+    decimal BillTotalAmount,
+    List<ParticipantPaymentStatusHttpResponse> ParticipantPayments
 );

@@ -10,11 +10,11 @@ Phase 2 — Bill Management & Item Splitting Core
 
 ## Objective
 
-Wait for next milestone prompt following completion of Participant Access & Sharing batch.
+Wait for next milestone prompt following completion of Payment Tracking batch.
 
 ## Completed Prerequisites
 
-Milestones 1.1 through 2.0.1 and Participant Access & Sharing are complete.
+Milestones 1.1 through 2.0.1, Participant Access & Sharing, and Payment Tracking are complete.
 
 ## Rule
 

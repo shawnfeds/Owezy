@@ -28,9 +28,16 @@ public static class BillEndpoints
         group.MapPost("/{billId}/participants/{participantId}/access-link", HandleGenerateAccessLinkAsync)
             .WithName("GenerateParticipantAccessLink");
 
+        group.MapGet("/{billId}/payments", HandleGetSplitterBillPaymentsAsync)
+            .WithName("GetSplitterBillPayments");
+
         app.MapGet("/participant-access/{token}", HandleGetParticipantViewAsync)
             .AllowAnonymous()
             .WithName("GetParticipantView");
+
+        app.MapPost("/participant-access/{token}/payment", HandleMarkParticipantPaidByTokenAsync)
+            .AllowAnonymous()
+            .WithName("MarkParticipantPaidByToken");
 
         return app;
     }
@@ -378,11 +385,96 @@ public static class BillEndpoints
             result.ParticipantId.Value.ToString(),
             result.ParticipantPhoneNumber.Value,
             result.TotalAmountOwed,
+            result.PaymentStatus.ToString(),
+            result.PaidAt,
             result.Items.Select(i => new ParticipantItemShareHttpResponse(
                 i.Description,
                 i.Quantity,
                 i.ItemTotalAmount,
                 i.MyShareAmount
+            )).ToList()
+        );
+
+        return Results.Ok(response);
+    }
+
+    private static async Task<IResult> HandleMarkParticipantPaidByTokenAsync(
+        string token,
+        IBillService billService,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Results.NotFound(new ApiError("invalid_token", "Participant access token is invalid or expired."));
+        }
+
+        var result = await billService.MarkParticipantPaidByTokenAsync(token, cancellationToken);
+        if (result is null)
+        {
+            return Results.NotFound(new ApiError("access_denied", "Participant access token is invalid or expired."));
+        }
+
+        var response = new MarkParticipantPaidHttpResponse(
+            result.ParticipantId.Value.ToString(),
+            result.PaymentStatus.ToString(),
+            result.PaidAt
+        );
+
+        return Results.Ok(response);
+    }
+
+    private static async Task<IResult> HandleGetSplitterBillPaymentsAsync(
+        string billId,
+        ClaimsPrincipal user,
+        IBillService billService,
+        CancellationToken cancellationToken)
+    {
+        var authenticatedPhone = GetAuthenticatedPhoneNumber(user);
+        if (authenticatedPhone is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        if (!Guid.TryParse(billId, out var billGuid))
+        {
+            return Results.BadRequest(new ApiError("invalid_bill_id", "billId must be a valid GUID."));
+        }
+
+        SplitterBillPaymentsResult result;
+        try
+        {
+            result = await billService.GetSplitterBillPaymentsAsync(
+                authenticatedPhone,
+                new BillId(billGuid),
+                cancellationToken);
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound(new ApiError("bill_not_found", "The specified bill was not found."));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Results.Json(new ApiError("unauthorized", ex.Message), statusCode: 403);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Json(new ApiError("bill_not_finalized", ex.Message), statusCode: 409);
+        }
+        catch (Exception)
+        {
+            return Results.Problem("An error occurred while retrieving payment statuses.", statusCode: 500);
+        }
+
+        var response = new SplitterBillPaymentsHttpResponse(
+            result.BillId.Value.ToString(),
+            result.BillTitle,
+            result.BillTotalAmount,
+            result.ParticipantPayments.Select(p => new ParticipantPaymentStatusHttpResponse(
+                p.ParticipantId.Value.ToString(),
+                p.PhoneNumber.Value,
+                p.AmountOwed,
+                p.PaymentStatus.ToString(),
+                p.PaidAt
             )).ToList()
         );
 

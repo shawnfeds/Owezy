@@ -6,6 +6,8 @@ public sealed class BillParticipantRow
     public Guid BillId { get; set; }
     public string PhoneNumber { get; set; } = string.Empty;
     public DateTimeOffset JoinedAt { get; set; }
+    public int PaymentStatus { get; set; } = 1;
+    public DateTimeOffset? PaidAt { get; set; }
 
     public BillRow? Bill { get; set; }
 }

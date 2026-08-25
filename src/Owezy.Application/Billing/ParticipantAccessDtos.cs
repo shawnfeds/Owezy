@@ -29,5 +29,7 @@ public sealed record ParticipantBillViewResult(
     ParticipantId ParticipantId,
     PhoneNumber ParticipantPhoneNumber,
     decimal TotalAmountOwed,
+    PaymentStatus PaymentStatus,
+    DateTimeOffset? PaidAt,
     IReadOnlyList<ParticipantItemShareDto> Items
 );

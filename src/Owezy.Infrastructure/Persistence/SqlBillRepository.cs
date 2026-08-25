@@ -82,15 +82,23 @@ public sealed class SqlBillRepository : IBillRepository
         // Sync participants
         foreach (var participant in bill.Participants)
         {
-            if (!existingRow.Participants.Any(p => p.Id == participant.Id.Value))
+            var existingPart = existingRow.Participants.FirstOrDefault(p => p.Id == participant.Id.Value);
+            if (existingPart is null)
             {
                 existingRow.Participants.Add(new BillParticipantRow
                 {
                     Id = participant.Id.Value,
                     BillId = bill.Id.Value,
                     PhoneNumber = participant.PhoneNumber.Value,
-                    JoinedAt = participant.JoinedAt
+                    JoinedAt = participant.JoinedAt,
+                    PaymentStatus = (int)participant.PaymentStatus,
+                    PaidAt = participant.PaidAt
                 });
+            }
+            else
+            {
+                existingPart.PaymentStatus = (int)participant.PaymentStatus;
+                existingPart.PaidAt = participant.PaidAt;
             }
         }
 
@@ -157,7 +165,9 @@ public sealed class SqlBillRepository : IBillRepository
                 Id = p.Id.Value,
                 BillId = bill.Id.Value,
                 PhoneNumber = p.PhoneNumber.Value,
-                JoinedAt = p.JoinedAt
+                JoinedAt = p.JoinedAt,
+                PaymentStatus = (int)p.PaymentStatus,
+                PaidAt = p.PaidAt
             }).ToList(),
             Items = bill.Items.Select(i => new BillItemRow
             {
@@ -190,7 +200,9 @@ public sealed class SqlBillRepository : IBillRepository
             new ParticipantId(p.Id),
             new BillId(p.BillId),
             PhoneNumber.Create(p.PhoneNumber),
-            p.JoinedAt
+            p.JoinedAt,
+            (PaymentStatus)p.PaymentStatus,
+            p.PaidAt
         ));
 
         var items = row.Items.Select(i => BillItem.Reconstitute(

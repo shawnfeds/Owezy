@@ -20,6 +20,13 @@ internal sealed class BillParticipantConfiguration : IEntityTypeConfiguration<Bi
 
         builder.Property(p => p.JoinedAt).IsRequired();
 
+        builder.Property(p => p.PaymentStatus)
+            .IsRequired()
+            .HasDefaultValue(1);
+
+        builder.Property(p => p.PaidAt)
+            .IsRequired(false);
+
         // Enforce uniqueness constraint at database level: duplicate participant membership in a single bill is prevented!
         builder.HasIndex(p => new { p.BillId, p.PhoneNumber })
             .IsUnique();

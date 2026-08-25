@@ -1,45 +1,48 @@
-# Handoff — Participant Access & Sharing Complete
+# Handoff — Payment Tracking Complete
 
 ## Current State
 
-Participant Access & Sharing milestone is complete.
+Payment Tracking milestone is complete.
 
 ## Capabilities Implemented
 
 - Domain Layer (`Owezy.Domain.Billing`):
-  - `ParticipantAccessLink` aggregate entity.
-  - `Bill.GenerateAccessLink(participantId, tokenHash, now)`: Enforces that access links can only be generated for FINALIZED bills and that the participant belongs to the bill. Revokes prior active links.
+  - `PaymentStatus` (`Unpaid = 1`, `Paid = 2`) enum.
+  - `Participant` updated with `PaymentStatus`, `PaidAt`, and `MarkPaid(now)` method (idempotent, server timestamped).
+  - `Bill.MarkParticipantPaid(participantId, now)`: Finalized bill requirement enforced; participant membership validated.
 - Application Layer (`Owezy.Application.Billing`):
-  - `IParticipantTokenGenerator` abstraction for secure token generation and SHA-256 hashing.
-  - `GenerateParticipantAccessLinkAsync`: Authenticated splitter-only operation returning an unguessable raw token.
-  - `GetParticipantViewAsync`: Anonymous participant view retrieval for finalized bills, using derived equal split shares without persisting shares.
+  - `MarkParticipantPaidByTokenAsync`: Allows participant to mark self paid using opaque access token.
+  - `GetSplitterBillPaymentsAsync`: Authenticated splitter-only operation retrieving group payment status and derived amounts owed.
+  - Updated `ParticipantBillViewResult` to include participant's own payment status and `PaidAt`.
 - Infrastructure Layer (`Owezy.Infrastructure`):
-  - `CryptoParticipantTokenGenerator` using `RandomNumberGenerator` (32 random bytes -> 64 hex chars) and `SHA256`.
-  - `ParticipantAccessLinkRow` and `ParticipantAccessLinkConfiguration` with unique index on `TokenHash`.
-  - EF Core migration `AddParticipantAccessLinks`.
+  - `BillParticipantRow` updated with `PaymentStatus` (default `1`) and `PaidAt`.
+  - `BillParticipantConfiguration` updated with EF Core properties.
+  - Mappings updated in `SqlBillRepository`.
+  - EF Core migration `AddParticipantPaymentStatus`.
 - API Layer (`Owezy.Api.Billing`):
-  - `POST /bills/{billId}/participants/{participantId}/access-link`: Splitter-only access link generation (`200 OK`).
-  - `GET /participant-access/{token}`: Anonymous participant-scoped view (`200 OK` or `404 Not Found`).
+  - `POST /participant-access/{token}/payment`: Token credential endpoint (`200 OK` or `404 Not Found`).
+  - `GET /bills/{billId}/payments`: Splitter-only endpoint (`200 OK`, `401 Unauthorized`, `403 Forbidden`, `409 Conflict` if OPEN).
+  - Updated `GET /participant-access/{token}` response payload with `paymentStatus` and `paidAt`.
 
 ## Verification
 
 | Check | Result |
 |---|---|
 | Build | PASS (0 warnings, 0 errors) |
-| Unit tests | 123/123 PASS |
+| Unit tests | 135/135 PASS |
 | Architecture tests | 4/4 PASS |
-| Integration & API tests | 42/42 PASS |
-| Total test suite | 169/169 PASS |
+| Integration & API tests | 47/47 PASS |
+| Total test suite | 186/186 PASS |
 | Working tree | CLEAN (after commit) |
 
 ## Security & Scope Boundary
 
-- Raw tokens are NEVER persisted (only SHA-256 hashes are stored).
-- Opaque random tokens contain no encoded business data or identifiers.
-- Participant views are strictly participant-scoped (no cross-participant payment/status info).
-- OPEN bills block participant access link generation and token view retrieval.
-- Participant tokens cannot mutate bills, finalize bills, or access splitter endpoints.
-- Payment tracking, settlement, OCR, UPI links, notifications, and QR codes are NOT implemented.
+- Payment is self-reported status tracking only (no payment processing, gateways, or settlement).
+- Participant can mark ONLY themselves paid via token.
+- Participant sees ONLY their own status in the participant view.
+- Splitter sees group payment status for their own finalized bill only.
+- OPEN bills reject all payment tracking operations.
+- Payment amounts continue to be derived from `EqualSplitCalculator`.
 
 ## Next
 

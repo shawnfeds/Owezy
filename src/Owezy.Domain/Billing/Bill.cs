@@ -205,4 +205,26 @@ public sealed class Bill
         _accessLinks.Add(link);
         return link;
     }
+
+    /// <summary>
+    /// Marks a participant as paid on a finalized bill.
+    /// Invariants enforced:
+    /// 1. Bill MUST be finalized (OPEN bills cannot track payment status).
+    /// 2. Participant MUST belong to this bill.
+    /// </summary>
+    public void MarkParticipantPaid(ParticipantId participantId, DateTimeOffset now)
+    {
+        if (!IsFinalized)
+        {
+            throw new InvalidOperationException("Payment status can only be updated for finalized bills.");
+        }
+
+        var participant = _participants.FirstOrDefault(p => p.Id == participantId);
+        if (participant is null)
+        {
+            throw new ArgumentException($"Participant '{participantId}' does not belong to bill '{Id}'.", nameof(participantId));
+        }
+
+        participant.MarkPaid(now);
+    }
 }

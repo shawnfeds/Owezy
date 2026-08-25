@@ -317,7 +317,111 @@ public sealed class BillService : IBillService
             targetParticipant.Id,
             targetParticipant.PhoneNumber,
             totalAmountOwed,
+            targetParticipant.PaymentStatus,
+            targetParticipant.PaidAt,
             participantItems
+        );
+    }
+
+    public async Task<MarkParticipantPaidResult?> MarkParticipantPaidByTokenAsync(
+        string rawToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(rawToken))
+        {
+            return null;
+        }
+
+        var tokenGen = _tokenGenerator ?? throw new InvalidOperationException("IParticipantTokenGenerator is not configured.");
+        var tokenHash = tokenGen.HashToken(rawToken.Trim());
+
+        var bill = await _billRepository.GetByAccessLinkHashAsync(tokenHash, cancellationToken);
+        if (bill is null || !bill.IsFinalized)
+        {
+            return null;
+        }
+
+        var link = bill.AccessLinks.FirstOrDefault(l => l.TokenHash == tokenHash && !l.IsRevoked);
+        if (link is null)
+        {
+            return null;
+        }
+
+        var participant = bill.Participants.FirstOrDefault(p => p.Id == link.ParticipantId);
+        if (participant is null)
+        {
+            return null;
+        }
+
+        var now = _dateTimeProvider.UtcNow;
+        bill.MarkParticipantPaid(participant.Id, now);
+
+        await _billRepository.UpdateAsync(bill, cancellationToken);
+
+        return new MarkParticipantPaidResult(
+            participant.Id,
+            participant.PaymentStatus,
+            participant.PaidAt
+        );
+    }
+
+    public async Task<SplitterBillPaymentsResult> GetSplitterBillPaymentsAsync(
+        PhoneNumber callerPhoneNumber,
+        BillId billId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(callerPhoneNumber);
+        if (billId.Value == Guid.Empty)
+        {
+            throw new ArgumentException("BillId cannot be empty.", nameof(billId));
+        }
+
+        var bill = await _billRepository.GetByIdAsync(billId, cancellationToken);
+        if (bill is null)
+        {
+            throw new KeyNotFoundException($"Bill with ID '{billId}' was not found.");
+        }
+
+        if (bill.SplitterPhoneNumber != callerPhoneNumber)
+        {
+            throw new UnauthorizedAccessException("Only the bill splitter can view payment status for the bill.");
+        }
+
+        if (!bill.IsFinalized)
+        {
+            throw new InvalidOperationException("Payment status is only available for finalized bills.");
+        }
+
+        decimal billTotalAmount = bill.Items.Sum(i => i.Amount);
+        var participantPayments = new List<ParticipantPaymentStatusDto>();
+
+        foreach (var participant in bill.Participants)
+        {
+            decimal participantTotalOwed = 0m;
+            foreach (var item in bill.Items)
+            {
+                if (item.SharerParticipantIds.Contains(participant.Id))
+                {
+                    var shares = EqualSplitCalculator.Calculate(item.Amount, item.SharerParticipantIds);
+                    var share = shares.First(s => s.ParticipantId == participant.Id);
+                    participantTotalOwed += share.Amount;
+                }
+            }
+
+            participantPayments.Add(new ParticipantPaymentStatusDto(
+                participant.Id,
+                participant.PhoneNumber,
+                participantTotalOwed,
+                participant.PaymentStatus,
+                participant.PaidAt
+            ));
+        }
+
+        return new SplitterBillPaymentsResult(
+            bill.Id,
+            bill.Title,
+            billTotalAmount,
+            participantPayments
         );
     }
 }
