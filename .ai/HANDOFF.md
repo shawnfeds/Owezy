@@ -1,24 +1,23 @@
-# Handoff — MVP Production-Safety Audit Complete
+# Handoff — MVP Operational Readiness & Deployment Foundation Complete
 
 ## State
 
-MVP Production-Safety Audit milestone is complete. Working tree clean.
+MVP Operational Readiness & Deployment Foundation milestone is complete. Working tree clean.
 
-## Audit Findings & Verification
+## What Was Added
 
-- **Secrets & Configuration**: Verified zero committed secrets in `appsettings.json` and `appsettings.Development.json`.
-- **JWT & OTP**: `HmacSha256OtpHasher` requires configuration secret and uses `CryptographicOperations.FixedTimeEquals` to prevent timing attacks. `JwtAccessTokenService` verifies key presence and minimum 32-character (256-bit) length.
-- **Receipt Storage Safety**: `LocalFileReceiptStorage` generates random GUID keys, sanitizes extensions to alphanumeric only, and explicitly checks for path traversal.
-- **Verification**: Created `ProductionSafetyAuditTests.cs` verifying secret absence requirements, key length validation, and path traversal extension sanitization.
+- **Health Endpoint**: Added `AddHealthChecks()` and `MapHealthChecks("/health")` in `Program.cs`. Returns `200 OK` ("Healthy").
+- **Containerization**: Added multi-stage `Dockerfile` (.NET 10 runtime + native Tesseract/Leptonica dependencies) and `.dockerignore`.
+- **Verification**: Added `HealthCheckTests.cs` verifying `GET /health` returns `200 OK` Healthy.
 
 ## Test Results
 
 | Suite | Pass | Total |
 |---|---|---|
 | Unit | 182 | 182 |
-| Integration/API | 90 | 90 |
+| Integration/API | 91 | 91 |
 | Architecture | 4 | 4 |
-| **Total** | **276** | **276** |
+| **Total** | **277** | **277** |
 
 ## Next
 
