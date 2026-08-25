@@ -28,10 +28,10 @@ Domain ← Application ← Infrastructure ← API
 
 OTP-based + JWT Access Token authentication.
 
-Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tracking, Settlement, Receipt Capture & OCR Review/Confirmation:
+Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tracking, Settlement, Receipt Capture & OCR Review/Confirmation, Sharer Assignment:
 - `Bill` aggregate: `Id`, `Title`, `SplitterPhoneNumber`, `CreatedAt`, `Status` (`Active`/`Finalized`), `FinalizedAt`, `Participants`, `Items`, `AccessLinks`
 - `EqualSplitCalculator`: largest-remainder rounding, deterministic by `ParticipantId ASC`. Shares are derived, NOT persisted.
-- Bill Lifecycle (`OPEN` → `FINALIZED`): at least 1 participant + 1 item required.
+- Bill Lifecycle (`OPEN` → `FINALIZED`): requires at least 1 participant, at least 1 item, and EVERY item must have at least 1 sharer.
 - Participant Access: finalized-only, 256-bit opaque tokens, SHA-256 hash stored.
 - Payment Tracking: self-reported `Unpaid/Paid` status on `BillParticipant`. Server-timestamped `PaidAt`. Idempotent mark-paid.
 - Settlement: read-only derived calculation (TotalOwed, TotalPaid, TotalRemaining, per-participant state). Splitter-visible only. No DB changes.
@@ -42,9 +42,10 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tr
 - OCR Review & Confirmation:
   - Splitter can review and edit/correct OCR drafts while bill is OPEN (`PUT /bills/{billId}/receipt/{receiptId}`).
   - Explicit confirmation (`POST /bills/{billId}/receipt/{receiptId}/confirm`) converts validated OCR line items into actual `BillItems` on the `Bill` aggregate.
-  - OCR line items created with NO auto-assigned sharers (sharer assignment is done separately by splitter).
-  - Confirmation is idempotent / prevents duplicate `BillItems`.
-  - Finalized bills cannot be modified through OCR confirmation.
+- Sharer Assignment & Final Composition:
+  - Splitter can replace/update the sharer list for any `BillItem` while bill is OPEN (`PUT /bills/{billId}/items/{itemId}/sharers`).
+  - Items can temporarily have 0 sharers after OCR confirmation, but bill finalization blocks if ANY item has zero sharers.
+  - Cross-bill participant IDs, duplicate sharer IDs, and non-splitter modifications are strictly rejected.
 
 ## Endpoints
 
@@ -53,6 +54,7 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tr
 - `POST /bills` → `201 Created` (JWT auth)
 - `POST /bills/{billId}/participants` → `200 OK` (JWT auth, splitter)
 - `POST /bills/{billId}/items` → `201 Created` (JWT auth, splitter)
+- `PUT  /bills/{billId}/items/{itemId}/sharers` → `200 OK` (JWT auth, splitter)
 - `POST /bills/{billId}/finalize` → `200 OK` (JWT auth, splitter)
 - `POST /bills/{billId}/participants/{participantId}/access-link` → `200 OK` (JWT auth, splitter)
 - `GET  /bills/{billId}/payments` → `200 OK` (JWT auth, splitter)
@@ -68,7 +70,7 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tr
 
 **Tables**: `OtpChallenges`, `Bills`, `BillParticipants`, `BillItems`, `BillItemSharers`, `ParticipantAccessLinks`, `Receipts`
 
-- `Receipts` columns: `Id`, `BillId`, `StorageKey`, `Status`, `CreatedAt`, `ConfirmedAt`, `OcrResultJson`. No image binary in SQL.
+- Existing `BillItemSharers` table reused. No new tables.
 
 ## Completed Milestones
 
@@ -83,6 +85,7 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tr
 - **Settlement & Final Balance** — COMPLETE
 - **Receipt Capture & OCR Foundation** — COMPLETE
 - **OCR Review & Confirmation** — COMPLETE
+- **Sharer Assignment & Final Bill Composition** — COMPLETE
 
 ## Not Yet Implemented
 

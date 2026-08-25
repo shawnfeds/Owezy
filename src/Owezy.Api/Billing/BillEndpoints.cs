@@ -34,6 +34,9 @@ public static class BillEndpoints
         group.MapGet("/{billId}/settlement", HandleGetBillSettlementAsync)
             .WithName("GetBillSettlement");
 
+        group.MapPut("/{billId}/items/{itemId}/sharers", HandleUpdateItemSharersAsync)
+            .WithName("UpdateItemSharers");
+
         app.MapGet("/participant-access/{token}", HandleGetParticipantViewAsync)
             .AllowAnonymous()
             .WithName("GetParticipantView");
@@ -544,6 +547,87 @@ public static class BillEndpoints
                 p.AmountRemaining,
                 p.PaymentStatus.ToString()
             )).ToList()
+        );
+
+        return Results.Ok(response);
+    }
+
+    private static async Task<IResult> HandleUpdateItemSharersAsync(
+        string billId,
+        string itemId,
+        UpdateItemSharersHttpRequest request,
+        ClaimsPrincipal user,
+        IBillService billService,
+        CancellationToken cancellationToken)
+    {
+        var authenticatedPhone = GetAuthenticatedPhoneNumber(user);
+        if (authenticatedPhone is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        if (!Guid.TryParse(billId, out var billGuid))
+        {
+            return Results.BadRequest(new ApiError("invalid_bill_id", "billId must be a valid GUID."));
+        }
+
+        if (!Guid.TryParse(itemId, out var itemGuid))
+        {
+            return Results.BadRequest(new ApiError("invalid_item_id", "itemId must be a valid GUID."));
+        }
+
+        if (request is null || request.ParticipantIds is null)
+        {
+            return Results.BadRequest(new ApiError("invalid_request", "ParticipantIds list must be provided."));
+        }
+
+        var participantGuids = new List<ParticipantId>();
+        foreach (var idStr in request.ParticipantIds)
+        {
+            if (!Guid.TryParse(idStr, out var pGuid))
+            {
+                return Results.BadRequest(new ApiError("invalid_participant_id", $"Participant ID '{idStr}' is not a valid GUID."));
+            }
+            participantGuids.Add(new ParticipantId(pGuid));
+        }
+
+        UpdateItemSharersResult result;
+        try
+        {
+            result = await billService.UpdateItemSharersAsync(
+                authenticatedPhone,
+                new UpdateItemSharersRequest(
+                    new BillId(billGuid),
+                    new BillItemId(itemGuid),
+                    participantGuids
+                ),
+                cancellationToken);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(new ApiError("not_found", ex.Message));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Results.Json(new ApiError("unauthorized", ex.Message), statusCode: 403);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Json(new ApiError("invalid_operation", ex.Message), statusCode: 409);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(new ApiError("invalid_sharers", ex.Message));
+        }
+        catch (Exception)
+        {
+            return Results.Problem("An error occurred while updating item sharers.", statusCode: 500);
+        }
+
+        var response = new UpdateItemSharersHttpResponse(
+            result.ItemId.Value.ToString(),
+            result.BillId.Value.ToString(),
+            result.SharerParticipantIds.Select(id => id.Value.ToString()).ToList()
         );
 
         return Results.Ok(response);

@@ -501,4 +501,45 @@ public sealed class BillService : IBillService
             participantSettlements
         );
     }
+
+    public async Task<UpdateItemSharersResult> UpdateItemSharersAsync(
+        PhoneNumber callerPhoneNumber,
+        UpdateItemSharersRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(callerPhoneNumber);
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request.BillId.Value == Guid.Empty)
+        {
+            throw new ArgumentException("BillId cannot be empty.", nameof(request));
+        }
+        if (request.ItemId.Value == Guid.Empty)
+        {
+            throw new ArgumentException("ItemId cannot be empty.", nameof(request));
+        }
+
+        var bill = await _billRepository.GetByIdAsync(request.BillId, cancellationToken);
+        if (bill is null)
+        {
+            throw new KeyNotFoundException($"Bill with ID '{request.BillId}' was not found.");
+        }
+
+        if (bill.SplitterPhoneNumber != callerPhoneNumber)
+        {
+            throw new UnauthorizedAccessException("Only the bill splitter can modify item sharers.");
+        }
+
+        bill.UpdateItemSharers(request.ItemId, request.SharerParticipantIds);
+
+        await _billRepository.UpdateAsync(bill, cancellationToken);
+
+        var updatedItem = bill.Items.First(i => i.Id == request.ItemId);
+
+        return new UpdateItemSharersResult(
+            updatedItem.Id,
+            updatedItem.BillId,
+            updatedItem.SharerParticipantIds
+        );
+    }
 }

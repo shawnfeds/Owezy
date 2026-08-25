@@ -105,4 +105,29 @@ public sealed class BillItem
 
         return new BillItem(id, billId, description.Trim(), quantity, amount, sharerParticipantIds ?? Enumerable.Empty<ParticipantId>());
     }
+
+    public void UpdateSharers(IEnumerable<ParticipantId> sharerParticipantIds)
+    {
+        ArgumentNullException.ThrowIfNull(sharerParticipantIds);
+
+        var uniqueSharerSet = new HashSet<ParticipantId>();
+        foreach (var sharerId in sharerParticipantIds)
+        {
+            if (sharerId.Value == Guid.Empty)
+            {
+                throw new ArgumentException("Sharer ParticipantId cannot be empty.", nameof(sharerParticipantIds));
+            }
+
+            if (!uniqueSharerSet.Add(sharerId))
+            {
+                throw new ArgumentException($"Duplicate sharer participant ID '{sharerId}' for item.", nameof(sharerParticipantIds));
+            }
+        }
+
+        _sharerParticipantIds.Clear();
+        foreach (var sharerId in uniqueSharerSet)
+        {
+            _sharerParticipantIds.Add(sharerId);
+        }
+    }
 }

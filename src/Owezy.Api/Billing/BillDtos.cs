@@ -112,3 +112,14 @@ public sealed record BillSettlementHttpResponse(
     int UnpaidCount,
     List<ParticipantSettlementHttpResponse> Participants
 );
+
+public sealed record UpdateItemSharersHttpRequest(
+    List<string> ParticipantIds
+);
+
+public sealed record UpdateItemSharersHttpResponse(
+    string ItemId,
+    string BillId,
+    List<string> ParticipantIds
+);
+

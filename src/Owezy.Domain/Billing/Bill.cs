@@ -167,8 +167,41 @@ public sealed class Bill
             throw new InvalidOperationException("A bill must have at least one item before it can be finalized.");
         }
 
+        if (_items.Any(i => i.SharerParticipantIds.Count == 0))
+        {
+            throw new InvalidOperationException("Cannot finalize bill when one or more items have zero sharers.");
+        }
+
         Status = BillStatus.Finalized;
         FinalizedAt = now;
+    }
+
+    public void UpdateItemSharers(BillItemId itemId, IEnumerable<ParticipantId> sharerParticipantIds)
+    {
+        if (IsFinalized)
+        {
+            throw new InvalidOperationException("Cannot modify item sharers on a finalized bill.");
+        }
+
+        ArgumentNullException.ThrowIfNull(sharerParticipantIds);
+
+        var item = _items.FirstOrDefault(i => i.Id == itemId);
+        if (item is null)
+        {
+            throw new KeyNotFoundException($"BillItem with ID '{itemId}' was not found in bill '{Id}'.");
+        }
+
+        var sharerList = sharerParticipantIds.ToList();
+
+        foreach (var sharerId in sharerList)
+        {
+            if (!_participants.Any(p => p.Id == sharerId))
+            {
+                throw new ArgumentException($"Participant '{sharerId}' does not belong to bill '{Id}'.", nameof(sharerParticipantIds));
+            }
+        }
+
+        item.UpdateSharers(sharerList);
     }
 
     /// <summary>
