@@ -123,3 +123,38 @@ public sealed record UpdateItemSharersHttpResponse(
     List<string> ParticipantIds
 );
 
+// ── Bill Summary DTOs ─────────────────────────────────────────────────────────
+
+public sealed record BillSummaryItemShareHttpResponse(
+    string ParticipantId,
+    decimal Amount
+);
+
+public sealed record BillSummaryItemHttpResponse(
+    string ItemId,
+    string Description,
+    decimal Quantity,
+    decimal Amount,
+    List<string> SharerParticipantIds,
+    List<BillSummaryItemShareHttpResponse> CalculatedShares
+);
+
+public sealed record BillSummaryParticipantHttpResponse(
+    string ParticipantId,
+    string PhoneNumber,
+    decimal AmountOwed,
+    string PaymentStatus,
+    DateTimeOffset? PaidAt
+);
+
+public sealed record SplitterBillSummaryHttpResponse(
+    string BillId,
+    string Title,
+    string SplitterPhoneNumber,
+    string Status,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? FinalizedAt,
+    decimal TotalAmount,
+    List<BillSummaryParticipantHttpResponse> Participants,
+    List<BillSummaryItemHttpResponse> Items
+);

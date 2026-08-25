@@ -542,4 +542,76 @@ public sealed class BillService : IBillService
             updatedItem.SharerParticipantIds
         );
     }
+
+    public async Task<SplitterBillSummaryResult> GetSplitterBillSummaryAsync(
+        PhoneNumber callerPhoneNumber,
+        BillId billId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(callerPhoneNumber);
+        if (billId.Value == Guid.Empty)
+        {
+            throw new ArgumentException("BillId cannot be empty.", nameof(billId));
+        }
+
+        var bill = await _billRepository.GetByIdAsync(billId, cancellationToken);
+        if (bill is null)
+        {
+            throw new KeyNotFoundException($"Bill with ID '{billId}' was not found.");
+        }
+
+        if (bill.SplitterPhoneNumber != callerPhoneNumber)
+        {
+            throw new UnauthorizedAccessException("Only the bill splitter can view the bill summary.");
+        }
+
+        // Build per-participant amount owed using EqualSplitCalculator
+        var participantOwed = bill.Participants.ToDictionary(p => p.Id, _ => 0m);
+
+        var itemResults = new List<SplitterBillSummaryItemDto>();
+        foreach (var item in bill.Items)
+        {
+            var shares = EqualSplitCalculator.Calculate(item);
+            var shareResults = shares.Select(s => new ParticipantShareResult(s.ParticipantId, s.Amount)).ToList().AsReadOnly();
+
+            foreach (var share in shares)
+            {
+                if (participantOwed.ContainsKey(share.ParticipantId))
+                {
+                    participantOwed[share.ParticipantId] += share.Amount;
+                }
+            }
+
+            itemResults.Add(new SplitterBillSummaryItemDto(
+                item.Id,
+                item.Description,
+                item.Quantity,
+                item.Amount,
+                item.SharerParticipantIds.ToList().AsReadOnly(),
+                shareResults
+            ));
+        }
+
+        var participantResults = bill.Participants.Select(p => new SplitterBillSummaryParticipantDto(
+            p.Id,
+            p.PhoneNumber,
+            participantOwed.TryGetValue(p.Id, out var owed) ? owed : 0m,
+            p.PaymentStatus,
+            p.PaidAt
+        )).ToList().AsReadOnly();
+
+        var totalAmount = bill.Items.Sum(i => i.Amount);
+
+        return new SplitterBillSummaryResult(
+            bill.Id,
+            bill.Title,
+            bill.SplitterPhoneNumber,
+            bill.Status,
+            bill.CreatedAt,
+            bill.FinalizedAt,
+            totalAmount,
+            participantResults,
+            itemResults.AsReadOnly()
+        );
+    }
 }

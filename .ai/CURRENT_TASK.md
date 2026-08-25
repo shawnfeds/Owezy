@@ -10,5 +10,4 @@ Next explicit milestone prompt.
 
 ## Completed
 
-All milestones through Final MVP Architecture & Readiness Audit are complete.
-The MVP backend is production-ready.
+All milestones through Bill & Participant Summary Views are complete.

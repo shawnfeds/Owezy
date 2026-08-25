@@ -1,34 +1,38 @@
-# Handoff — Final MVP Architecture & Readiness Audit Complete
+# Handoff — Bill & Participant Summary Views Complete
 
 ## State
 
-Final MVP Architecture & Readiness Audit milestone is complete. Working tree clean.
+Bill & Participant Summary Views milestone is complete. Working tree clean.
 
-## Defect Fixed
+## What Was Added
 
-**JWT startup safety gap** (`ServiceRegistration.cs`):
-- The conditional `if (!string.IsNullOrWhiteSpace(jwtOptions.SigningKey) && jwtOptions.SigningKey.Length >= 32)` silently skipped setting `TokenValidationParameters` when the key was absent or too short — meaning the app would start without token validation configured.
-- Fixed to throw `InvalidOperationException` when the key is missing/too short, ensuring deterministic startup failure rather than silent misconfiguration.
-- `HealthCheckTests.cs` updated to supply a valid JWT key via `WithWebHostBuilder`, matching the required startup constraint.
+- **Application Layer**:
+  - `SplitterBillSummaryResult.cs`: `SplitterBillSummaryResult`, `SplitterBillSummaryParticipantDto`, `SplitterBillSummaryItemDto` DTOs.
+  - `IBillService.GetSplitterBillSummaryAsync`: new method signature.
+  - `BillService.GetSplitterBillSummaryAsync`: computes per-participant amounts using existing `EqualSplitCalculator`; returns full bill with items, shares, and payment statuses.
 
-## Audit Summary (All PASS)
+- **API Layer**:
+  - `BillDtos.cs`: `SplitterBillSummaryHttpResponse`, `BillSummaryParticipantHttpResponse`, `BillSummaryItemHttpResponse`, `BillSummaryItemShareHttpResponse`.
+  - `GET /bills/{billId}` → `HandleGetSplitterBillSummaryAsync`: splitter-only, returns complete bill summary.
+  - `GET /participant-access/{token}/summary` → `HandleGetParticipantSummaryAsync`: anonymous, participant-scoped view reusing existing `GetParticipantViewAsync`.
 
-- End-to-end business flow: PASS
-- Architecture boundaries (NetArchTest): PASS
-- Security (no secrets in responses/config): PASS
-- Persistence (all state transitions verified): PASS
-- Finalization invariants (at-least-one-of-each, sharer required): PASS
-- API contracts (401/403/404/409/400 consistent): PASS
-- Deployment readiness (Dockerfile, health, config-externalized): PASS
+- **Tests**:
+  - `BillSummaryApiTests.cs`: 5 integration tests covering splitter summary data completeness, 403 non-splitter, 200 finalized bill, 404 missing bill, participant scoped summary, and invalid token 404.
+
+## Key Properties
+
+- Calculation reuse: both views use `EqualSplitCalculator` exclusively.
+- Participant scoping: participant sees only items they share; other participants' data not exposed.
+- No new database tables or schema changes.
 
 ## Test Results
 
 | Suite | Pass | Total |
 |---|---|---|
 | Unit | 182 | 182 |
-| Integration/API | 91 | 91 |
+| Integration/API | 97 | 97 |
 | Architecture | 4 | 4 |
-| **Total** | **277** | **277** |
+| **Total** | **283** | **283** |
 
 ## Next
 

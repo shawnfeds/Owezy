@@ -37,6 +37,9 @@ public static class BillEndpoints
         group.MapPut("/{billId}/items/{itemId}/sharers", HandleUpdateItemSharersAsync)
             .WithName("UpdateItemSharers");
 
+        group.MapGet("/{billId}", HandleGetSplitterBillSummaryAsync)
+            .WithName("GetSplitterBillSummary");
+
         app.MapGet("/participant-access/{token}", HandleGetParticipantViewAsync)
             .AllowAnonymous()
             .WithName("GetParticipantView");
@@ -44,6 +47,10 @@ public static class BillEndpoints
         app.MapPost("/participant-access/{token}/payment", HandleMarkParticipantPaidByTokenAsync)
             .AllowAnonymous()
             .WithName("MarkParticipantPaidByToken");
+
+        app.MapGet("/participant-access/{token}/summary", HandleGetParticipantSummaryAsync)
+            .AllowAnonymous()
+            .WithName("GetParticipantSummary");
 
         return app;
     }
@@ -628,6 +635,110 @@ public static class BillEndpoints
             result.ItemId.Value.ToString(),
             result.BillId.Value.ToString(),
             result.SharerParticipantIds.Select(id => id.Value.ToString()).ToList()
+        );
+
+        return Results.Ok(response);
+    }
+
+    private static async Task<IResult> HandleGetSplitterBillSummaryAsync(
+        string billId,
+        ClaimsPrincipal user,
+        IBillService billService,
+        CancellationToken cancellationToken)
+    {
+        var authenticatedPhone = GetAuthenticatedPhoneNumber(user);
+        if (authenticatedPhone is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        if (!Guid.TryParse(billId, out var billGuid))
+        {
+            return Results.BadRequest(new ApiError("invalid_bill_id", "billId must be a valid GUID."));
+        }
+
+        SplitterBillSummaryResult result;
+        try
+        {
+            result = await billService.GetSplitterBillSummaryAsync(
+                authenticatedPhone,
+                new BillId(billGuid),
+                cancellationToken);
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound(new ApiError("bill_not_found", "The specified bill was not found."));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Results.Json(new ApiError("unauthorized", ex.Message), statusCode: 403);
+        }
+        catch (Exception)
+        {
+            return Results.Problem("An error occurred while retrieving the bill summary.", statusCode: 500);
+        }
+
+        var response = new SplitterBillSummaryHttpResponse(
+            result.BillId.Value.ToString(),
+            result.Title,
+            result.SplitterPhoneNumber.Value,
+            result.Status.ToString(),
+            result.CreatedAt,
+            result.FinalizedAt,
+            result.TotalAmount,
+            result.Participants.Select(p => new BillSummaryParticipantHttpResponse(
+                p.ParticipantId.Value.ToString(),
+                p.PhoneNumber.Value,
+                p.AmountOwed,
+                p.PaymentStatus.ToString(),
+                p.PaidAt
+            )).ToList(),
+            result.Items.Select(i => new BillSummaryItemHttpResponse(
+                i.ItemId.Value.ToString(),
+                i.Description,
+                i.Quantity,
+                i.Amount,
+                i.SharerParticipantIds.Select(s => s.Value.ToString()).ToList(),
+                i.CalculatedShares.Select(s => new BillSummaryItemShareHttpResponse(
+                    s.ParticipantId.Value.ToString(),
+                    s.Amount
+                )).ToList()
+            )).ToList()
+        );
+
+        return Results.Ok(response);
+    }
+
+    private static async Task<IResult> HandleGetParticipantSummaryAsync(
+        string token,
+        IBillService billService,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Results.NotFound(new ApiError("invalid_token", "Participant access token is invalid or expired."));
+        }
+
+        var result = await billService.GetParticipantViewAsync(token, cancellationToken);
+        if (result is null)
+        {
+            return Results.NotFound(new ApiError("access_denied", "Participant access token is invalid or expired."));
+        }
+
+        var response = new ParticipantBillViewHttpResponse(
+            result.BillTitle,
+            result.BillTotalAmount,
+            result.ParticipantId.Value.ToString(),
+            result.ParticipantPhoneNumber.Value,
+            result.TotalAmountOwed,
+            result.PaymentStatus.ToString(),
+            result.PaidAt,
+            result.Items.Select(i => new ParticipantItemShareHttpResponse(
+                i.Description,
+                i.Quantity,
+                i.ItemTotalAmount,
+                i.MyShareAmount
+            )).ToList()
         );
 
         return Results.Ok(response);

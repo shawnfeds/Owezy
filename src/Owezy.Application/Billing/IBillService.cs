@@ -16,4 +16,5 @@ public interface IBillService
     Task<SplitterBillPaymentsResult> GetSplitterBillPaymentsAsync(PhoneNumber callerPhoneNumber, BillId billId, CancellationToken cancellationToken = default);
     Task<BillSettlementResult> GetBillSettlementAsync(PhoneNumber callerPhoneNumber, BillId billId, CancellationToken cancellationToken = default);
     Task<UpdateItemSharersResult> UpdateItemSharersAsync(PhoneNumber callerPhoneNumber, UpdateItemSharersRequest request, CancellationToken cancellationToken = default);
+    Task<SplitterBillSummaryResult> GetSplitterBillSummaryAsync(PhoneNumber callerPhoneNumber, BillId billId, CancellationToken cancellationToken = default);
 }
