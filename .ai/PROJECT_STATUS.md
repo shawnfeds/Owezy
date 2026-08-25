@@ -28,7 +28,7 @@ Domain ← Application ← Infrastructure ← API
 
 OTP-based + JWT Access Token authentication.
 
-Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tracking, Settlement, Receipt Capture & OCR Review/Confirmation, Sharer Assignment & API Hardening:
+Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tracking, Settlement, Receipt Capture & OCR Review/Confirmation, Sharer Assignment & Production-Safety Hardening:
 - `Bill` aggregate: `Id`, `Title`, `SplitterPhoneNumber`, `CreatedAt`, `Status` (`Active`/`Finalized`), `FinalizedAt`, `Participants`, `Items`, `AccessLinks`
 - `EqualSplitCalculator`: largest-remainder rounding, deterministic by `ParticipantId ASC`. Shares are derived, NOT persisted.
 - Bill Lifecycle (`OPEN` → `FINALIZED`): requires at least 1 participant, at least 1 item, and EVERY item must have at least 1 sharer.
@@ -45,11 +45,10 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tr
 - Sharer Assignment & Final Composition:
   - Splitter can replace/update the sharer list for any `BillItem` while bill is OPEN (`PUT /bills/{billId}/items/{itemId}/sharers`).
   - Items can temporarily have 0 sharers after OCR confirmation, but bill finalization blocks if ANY item has zero sharers.
-  - Cross-bill participant IDs, duplicate sharer IDs, and non-splitter modifications are strictly rejected.
-- API Contract & Error-Handling Hardening:
-  - Consistent HTTP error semantics (400, 401, 403, 404, 409, 500).
-  - Sanitized internal error responses (no stack traces, connection strings, or secret leaks).
-  - Verified authorization boundaries and finalized bill mutation protections.
+- MVP Production-Safety Audit & Hardening:
+  - Secrets & Config: Zero committed secrets. `HmacSha256OtpHasher` and `JwtAccessTokenService` enforce non-empty secret keys (>= 32 chars for JWT).
+  - Storage & Upload: Local file storage generates random GUID keys and sanitizes extensions to prevent path traversal; upload validates magic bytes and max 10MB file size.
+  - Security: Constant-time comparison for OTP hashes; error responses do not leak stack traces or internal secrets.
 
 ## Endpoints
 
@@ -90,6 +89,7 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tr
 - **Sharer Assignment & Final Bill Composition** — COMPLETE
 - **End-to-End Billing Consistency Audit & Hardening** — COMPLETE
 - **API Contract & Error-Handling Hardening** — COMPLETE
+- **MVP Production-Safety Audit** — COMPLETE
 
 ## Not Yet Implemented
 
