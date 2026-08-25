@@ -1,14 +1,25 @@
-# Handoff — MVP Operational Readiness & Deployment Foundation Complete
+# Handoff — Final MVP Architecture & Readiness Audit Complete
 
 ## State
 
-MVP Operational Readiness & Deployment Foundation milestone is complete. Working tree clean.
+Final MVP Architecture & Readiness Audit milestone is complete. Working tree clean.
 
-## What Was Added
+## Defect Fixed
 
-- **Health Endpoint**: Added `AddHealthChecks()` and `MapHealthChecks("/health")` in `Program.cs`. Returns `200 OK` ("Healthy").
-- **Containerization**: Added multi-stage `Dockerfile` (.NET 10 runtime + native Tesseract/Leptonica dependencies) and `.dockerignore`.
-- **Verification**: Added `HealthCheckTests.cs` verifying `GET /health` returns `200 OK` Healthy.
+**JWT startup safety gap** (`ServiceRegistration.cs`):
+- The conditional `if (!string.IsNullOrWhiteSpace(jwtOptions.SigningKey) && jwtOptions.SigningKey.Length >= 32)` silently skipped setting `TokenValidationParameters` when the key was absent or too short — meaning the app would start without token validation configured.
+- Fixed to throw `InvalidOperationException` when the key is missing/too short, ensuring deterministic startup failure rather than silent misconfiguration.
+- `HealthCheckTests.cs` updated to supply a valid JWT key via `WithWebHostBuilder`, matching the required startup constraint.
+
+## Audit Summary (All PASS)
+
+- End-to-end business flow: PASS
+- Architecture boundaries (NetArchTest): PASS
+- Security (no secrets in responses/config): PASS
+- Persistence (all state transitions verified): PASS
+- Finalization invariants (at-least-one-of-each, sharer required): PASS
+- API contracts (401/403/404/409/400 consistent): PASS
+- Deployment readiness (Dockerfile, health, config-externalized): PASS
 
 ## Test Results
 

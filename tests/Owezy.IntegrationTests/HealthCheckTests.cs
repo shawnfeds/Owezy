@@ -6,11 +6,17 @@ namespace Owezy.IntegrationTests;
 
 public class HealthCheckTests : IClassFixture<WebApplicationFactory<Program>>
 {
+    private const string TestJwtKey = "api-test-jwt-signing-secret-key-32chars-long-12345";
     private readonly WebApplicationFactory<Program> _factory;
 
     public HealthCheckTests(WebApplicationFactory<Program> factory)
     {
-        _factory = factory;
+        _factory = factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Jwt:SigningKey", TestJwtKey);
+            builder.UseSetting("Jwt:Issuer", "Owezy.Api");
+            builder.UseSetting("Jwt:Audience", "Owezy.App");
+        });
     }
 
     [Fact]

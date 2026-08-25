@@ -18,37 +18,29 @@ Domain ← Application ← Infrastructure ← API
 - `Infrastructure`: depends on `Application` + `Domain`. Must not depend on `API`.
 - `API`: depends on `Application` and `Infrastructure` (composition root only).
 
+Architecture enforced by NetArchTest in `Owezy.ArchitectureTests`.
+
 ## Technology
 
 - .NET 10 / C# / ASP.NET Core
-- Entity Framework Core
-- SQL Server
+- Entity Framework Core + SQL Server
+- Tesseract OCR (local, via `Tesseract` NuGet)
 
 ## Capabilities
 
 OTP-based + JWT Access Token authentication.
 
-Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tracking, Settlement, Receipt Capture & OCR Review/Confirmation, Sharer Assignment, API Hardening & Operational Readiness:
+Full billing lifecycle: create → add participants → add items → assign sharers → finalize → participant access → payment → settlement.
+
 - `Bill` aggregate: `Id`, `Title`, `SplitterPhoneNumber`, `CreatedAt`, `Status` (`Active`/`Finalized`), `FinalizedAt`, `Participants`, `Items`, `AccessLinks`
 - `EqualSplitCalculator`: largest-remainder rounding, deterministic by `ParticipantId ASC`. Shares are derived, NOT persisted.
 - Bill Lifecycle (`OPEN` → `FINALIZED`): requires at least 1 participant, at least 1 item, and EVERY item must have at least 1 sharer.
-- Participant Access: finalized-only, 256-bit opaque tokens, SHA-256 hash stored.
-- Payment Tracking: self-reported `Unpaid/Paid` status on `BillParticipant`. Server-timestamped `PaidAt`. Idempotent mark-paid.
-- Settlement: read-only derived calculation (TotalOwed, TotalPaid, TotalRemaining, per-participant state). Splitter-visible only. No DB changes.
-- Receipt Capture & OCR Foundation:
-  - `Receipt` aggregate: `Id`, `BillId`, `StorageKey`, `Status` (`Created`/`Processed`/`Failed`/`Confirmed`), `CreatedAt`, `ConfirmedAt`, `OcrDraft`.
-  - `IOcrService` abstraction wrapping local/free Tesseract OCR.
-  - `IReceiptStorage` abstraction storing files on local filesystem using server-generated GUID keys.
-- OCR Review & Confirmation:
-  - Splitter can review and edit/correct OCR drafts while bill is OPEN (`PUT /bills/{billId}/receipt/{receiptId}`).
-  - Explicit confirmation (`POST /bills/{billId}/receipt/{receiptId}/confirm`) converts validated OCR line items into actual `BillItems` on the `Bill` aggregate.
-- Sharer Assignment & Final Composition:
-  - Splitter can replace/update the sharer list for any `BillItem` while bill is OPEN (`PUT /bills/{billId}/items/{itemId}/sharers`).
-  - Items can temporarily have 0 sharers after OCR confirmation, but bill finalization blocks if ANY item has zero sharers.
-- Operational Readiness & Deployment Foundation:
-  - Added ASP.NET Core Health Checks at `GET /health`.
-  - Added multi-stage `Dockerfile` and `.dockerignore` for containerized deployment.
-  - Verified EF Core migration readiness and environment-driven configuration overrides.
+- Participant Access: finalized-only, 256-bit opaque tokens, SHA-256 hash stored. Raw token never persisted.
+- Payment Tracking: self-reported `Unpaid/Paid` status on `BillParticipant`. Server-timestamped `PaidAt`. Idempotent.
+- Settlement: read-only derived calculation (TotalOwed, TotalPaid, TotalRemaining). Splitter-visible only. No DB changes.
+- Receipt Capture & OCR: upload → OCR draft → splitter review/correction → explicit confirmation → BillItems.
+- Sharer Assignment: `PUT /bills/{billId}/items/{itemId}/sharers` replaces the full sharer set atomically.
+- Startup safety: missing/short JWT key **fails startup deterministically** with a clear error message.
 
 ## Endpoints
 
@@ -65,8 +57,8 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tr
 - `GET  /bills/{billId}/settlement` → `200 OK` (JWT auth, splitter)
 - `POST /bills/{billId}/receipt` → `201 Created` (JWT auth, splitter, image upload)
 - `GET  /bills/{billId}/receipt/{receiptId}` → `200 OK` (JWT auth, splitter)
-- `PUT  /bills/{billId}/receipt/{receiptId}` → `200 OK` (JWT auth, splitter, edit OCR draft)
-- `POST /bills/{billId}/receipt/{receiptId}/confirm` → `200 OK` (JWT auth, splitter, creates BillItems)
+- `PUT  /bills/{billId}/receipt/{receiptId}` → `200 OK` (JWT auth, splitter)
+- `POST /bills/{billId}/receipt/{receiptId}/confirm` → `200 OK` (JWT auth, splitter)
 - `GET  /participant-access/{token}` → `200 OK` (AllowAnonymous)
 - `POST /participant-access/{token}/payment` → `200 OK` (AllowAnonymous)
 
@@ -76,12 +68,7 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tr
 
 ## Completed Milestones
 
-- **1.1–1.6** Authentication — COMPLETE
-- **1.7** Bill & Participant Domain Foundation — COMPLETE
-- **1.8** Bill Items & Sharer Definitions — COMPLETE
-- **1.9** Authoritative Split Calculation Engine — COMPLETE
-- **2.0** Bill Lifecycle & Finalization — COMPLETE
-- **2.0.1** Finalization Participant Invariant Fix — COMPLETE
+- **1.1–2.0.1** Auth + Bill/Participant/Items/Finalization foundation — COMPLETE
 - **Participant Access & Sharing** — COMPLETE
 - **Payment Tracking** — COMPLETE
 - **Settlement & Final Balance** — COMPLETE
@@ -92,6 +79,7 @@ Bill, Participant, Items, Calculation, Lifecycle, Participant Access, Payment Tr
 - **API Contract & Error-Handling Hardening** — COMPLETE
 - **MVP Production-Safety Audit** — COMPLETE
 - **MVP Operational Readiness & Deployment Foundation** — COMPLETE
+- **Final MVP Architecture & Readiness Audit** — COMPLETE
 
 ## Not Yet Implemented
 

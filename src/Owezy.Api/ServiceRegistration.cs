@@ -80,20 +80,24 @@ public static class ServiceRegistration
             .Configure<IOptions<JwtOptions>>((bearerOptions, jwtOptionsAcc) =>
             {
                 var jwtOptions = jwtOptionsAcc.Value;
-                if (!string.IsNullOrWhiteSpace(jwtOptions.SigningKey) && jwtOptions.SigningKey.Length >= 32)
+
+                if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey) || jwtOptions.SigningKey.Length < 32)
                 {
-                    bearerOptions.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        ValidateIssuer = true,
-                        ValidIssuer = jwtOptions.Issuer,
-                        ValidateAudience = true,
-                        ValidAudience = jwtOptions.Audience,
-                        ValidateLifetime = true,
-                        ValidateIssuerSigningKey = true,
-                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
-                        ClockSkew = TimeSpan.Zero
-                    };
+                    throw new InvalidOperationException(
+                        "JWT SigningKey is missing or too short. Provide a key of at least 32 characters via configuration.");
                 }
+
+                bearerOptions.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = jwtOptions.Issuer,
+                    ValidateAudience = true,
+                    ValidAudience = jwtOptions.Audience,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
+                    ClockSkew = TimeSpan.Zero
+                };
             });
 
         return services;
