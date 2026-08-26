@@ -218,13 +218,3 @@ public sealed class OtpChallengeRepositoryTests : IAsyncLifetime
         Assert.Equal(1, count);
     }
 }
-
-/// <summary>
-/// Used to skip a test when a runtime prerequisite is unavailable.
-/// xUnit v2 does not natively support skip-at-runtime; this throws to mark the test as failed
-/// but the reason is clearly reported in the output.
-/// </summary>
-internal sealed class SkipException : Exception
-{
-    public SkipException(string reason) : base(reason) { }
-}

@@ -6,8 +6,8 @@ NOT STARTED
 
 ## Waiting For
 
-Next explicit milestone prompt.
+Next explicit instruction or frontend work.
 
 ## Completed
 
-All milestones through End-to-End MVP User Journey Verification are complete.
+All backend MVP milestones through MVP Scope & Technical Debt Cleanup are complete.

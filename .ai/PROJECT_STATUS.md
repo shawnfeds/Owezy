@@ -64,6 +64,7 @@ Architecture enforced by NetArchTest in `Owezy.ArchitectureTests`.
 - **Bill & Participant Summary Views** — COMPLETE
 - **Receipt/OCR → Billing Accuracy Hardening** — COMPLETE
 - **End-to-End MVP User Journey Verification** — COMPLETE
+- **MVP Scope & Technical Debt Cleanup** — COMPLETE
 
 ## Not Yet Implemented
 
