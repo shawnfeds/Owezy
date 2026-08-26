@@ -77,6 +77,10 @@ public static class ReceiptEndpoints
         }
         catch (InvalidOperationException ex)
         {
+            if (ex.Message.Contains("finalized", StringComparison.OrdinalIgnoreCase))
+            {
+                return Results.Json(new ApiError("bill_finalized", ex.Message), statusCode: 409);
+            }
             return Results.BadRequest(new ApiError("invalid_receipt_file", ex.Message));
         }
         catch (Exception)

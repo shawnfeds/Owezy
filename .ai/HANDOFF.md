@@ -1,38 +1,40 @@
-# Handoff — Bill & Participant Summary Views Complete
+# Handoff — Receipt/OCR Billing Accuracy Hardening Complete
 
 ## State
 
-Bill & Participant Summary Views milestone is complete. Working tree clean.
+Receipt/OCR Billing Accuracy Hardening milestone is complete. Working tree clean.
 
-## What Was Added
+## Hardening Fixes Made
 
-- **Application Layer**:
-  - `SplitterBillSummaryResult.cs`: `SplitterBillSummaryResult`, `SplitterBillSummaryParticipantDto`, `SplitterBillSummaryItemDto` DTOs.
-  - `IBillService.GetSplitterBillSummaryAsync`: new method signature.
-  - `BillService.GetSplitterBillSummaryAsync`: computes per-participant amounts using existing `EqualSplitCalculator`; returns full bill with items, shares, and payment statuses.
+- **Finalized Bill Upload Guard**:
+  - `ReceiptService.UploadReceiptAsync`: Added check `if (bill.IsFinalized)` throwing `InvalidOperationException` to block receipt uploads on finalized bills.
+  - `ReceiptEndpoints.HandleUploadReceiptAsync`: Catches `InvalidOperationException` for finalized bills and returns `409 Conflict`.
 
-- **API Layer**:
-  - `BillDtos.cs`: `SplitterBillSummaryHttpResponse`, `BillSummaryParticipantHttpResponse`, `BillSummaryItemHttpResponse`, `BillSummaryItemShareHttpResponse`.
-  - `GET /bills/{billId}` → `HandleGetSplitterBillSummaryAsync`: splitter-only, returns complete bill summary.
-  - `GET /participant-access/{token}/summary` → `HandleGetParticipantSummaryAsync`: anonymous, participant-scoped view reusing existing `GetParticipantViewAsync`.
+- **Fractional Quantity Floor Guard**:
+  - `ReceiptService.ConfirmReceiptAsync`: Ensures items with fractional quantities `< 1` default to integer quantity `1` (`item.Quantity.Value >= 1m ? (int)Math.Floor(...) : 1`), preventing `ArgumentOutOfRangeException` during `BillItem.Create`.
 
-- **Tests**:
-  - `BillSummaryApiTests.cs`: 5 integration tests covering splitter summary data completeness, 403 non-splitter, 200 finalized bill, 404 missing bill, participant scoped summary, and invalid token 404.
+- **Tests Added**:
+  - `ReceiptServiceTests.cs`: `UploadReceipt_FinalizedBill_ThrowsInvalidOperationException` and `ConfirmReceipt_FractionalQuantity_DefaultsToQuantityAtLeastOne`.
+  - `ReceiptApiTests.cs`: `UploadReceipt_FinalizedBill_Returns409Conflict` and `ReceiptToSettlement_FullLifecycle_MaintainsExactBillingConsistency`.
 
-## Key Properties
+## Audit Checklist (All PASS)
 
-- Calculation reuse: both views use `EqualSplitCalculator` exclusively.
-- Participant scoping: participant sees only items they share; other participants' data not exposed.
-- No new database tables or schema changes.
+- OCR normalization rules (line total vs unit price x qty): PASS
+- Receipt confirmation immutability and duplicate prevention: PASS
+- BillItem mapping accuracy: PASS
+- Money amount exactness: PASS
+- Finalized bill protection (upload, review, confirm): PASS
+- Security (file path traversal prevention, secret isolation): PASS
+- End-to-end settlement consistency: PASS
 
 ## Test Results
 
 | Suite | Pass | Total |
 |---|---|---|
-| Unit | 182 | 182 |
-| Integration/API | 97 | 97 |
+| Unit | 184 | 184 |
+| Integration/API | 99 | 99 |
 | Architecture | 4 | 4 |
-| **Total** | **283** | **283** |
+| **Total** | **287** | **287** |
 
 ## Next
 

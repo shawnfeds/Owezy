@@ -89,12 +89,14 @@ public sealed class ReceiptService : IReceiptService
         // Reset stream to beginning for storage and OCR
         imageStream.Seek(0, SeekOrigin.Begin);
 
-        // 5. Verify bill exists and caller is the splitter
+        // 5. Verify bill exists, is not finalized, and caller is the splitter
         var bill = await _billRepository.GetByIdAsync(billId, cancellationToken);
         if (bill is null)
             throw new KeyNotFoundException($"Bill with ID '{billId}' was not found.");
         if (bill.SplitterPhoneNumber != callerPhoneNumber)
             throw new UnauthorizedAccessException("Only the bill splitter can upload receipts for this bill.");
+        if (bill.IsFinalized)
+            throw new InvalidOperationException("Cannot upload receipt for a finalized bill.");
 
         // 6. Store image (server-generated key, never use client filename)
         var storageKey = await _receiptStorage.StoreAsync(imageStream, canonicalExtension, cancellationToken);
@@ -297,7 +299,7 @@ public sealed class ReceiptService : IReceiptService
 
         foreach (var item in normalizedDraft.LineItems)
         {
-            int qty = item.Quantity.HasValue && item.Quantity.Value > 0m
+            int qty = item.Quantity.HasValue && item.Quantity.Value >= 1m
                 ? (int)Math.Floor(item.Quantity.Value)
                 : 1;
 

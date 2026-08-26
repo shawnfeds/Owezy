@@ -10,4 +10,4 @@ Next explicit milestone prompt.
 
 ## Completed
 
-All milestones through Bill & Participant Summary Views are complete.
+All milestones through Receipt/OCR Billing Accuracy Hardening are complete.

@@ -462,5 +462,45 @@ public class ReceiptServiceTests
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             svc.ConfirmReceiptAsync(_otherPhone, bill.Id, uploadResult.ReceiptId));
     }
+
+    [Fact]
+    public async Task UploadReceipt_FinalizedBill_ThrowsInvalidOperationException()
+    {
+        var svc = CreateService();
+        var bill = Bill.Create("Dinner", _splitterPhone, _clock.UtcNow);
+        var part = bill.AddParticipant(_otherPhone, _clock.UtcNow);
+        bill.AddItem("Item", 1, 100m, new[] { part.Id });
+        await _billRepo.AddAsync(bill);
+
+        bill.Finalize(_clock.UtcNow);
+
+        using var stream = CreateValidJpegStream();
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            svc.UploadReceiptAsync(_splitterPhone, bill.Id, stream, "receipt.jpg", "image/jpeg", stream.Length));
+    }
+
+    [Fact]
+    public async Task ConfirmReceipt_FractionalQuantity_DefaultsToQuantityAtLeastOne()
+    {
+        var svc = CreateService();
+        var bill = Bill.Create("Dinner", _splitterPhone, _clock.UtcNow);
+        await _billRepo.AddAsync(bill);
+
+        using var stream = CreateValidJpegStream();
+        var uploadResult = await svc.UploadReceiptAsync(_splitterPhone, bill.Id, stream, "receipt.jpg", "image/jpeg", stream.Length);
+
+        var updateReq = new UpdateReceiptDraftRequest(
+            "Merchant", null, null, null, null, null, null,
+            new[] { new OcrLineItemDto("Fractional Item", 0.5m, null, 150m, null) }
+        );
+        await svc.UpdateReceiptDraftAsync(_splitterPhone, bill.Id, uploadResult.ReceiptId, updateReq);
+
+        var confirmResult = await svc.ConfirmReceiptAsync(_splitterPhone, bill.Id, uploadResult.ReceiptId);
+
+        var updatedBill = await _billRepo.GetByIdAsync(bill.Id);
+        var item = updatedBill!.Items.Single();
+        Assert.Equal(1, item.Quantity);
+        Assert.Equal(150m, item.Amount);
+    }
 }
 

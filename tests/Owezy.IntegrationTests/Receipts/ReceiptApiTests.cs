@@ -381,5 +381,110 @@ public class ReceiptApiTests : IClassFixture<WebApplicationFactory<Program>>
 
         Assert.Equal(HttpStatusCode.Forbidden, confirmRes.StatusCode);
     }
+
+    [Fact]
+    public async Task UploadReceipt_FinalizedBill_Returns409Conflict()
+    {
+        var client = CreateAuthenticatedClient(_splitterPhone);
+
+        var createRes = await client.PostAsJsonAsync("/bills", new { title = "Finalized Bill" });
+        var billData = await createRes.Content.ReadFromJsonAsync<CreateBillHttpResponse>();
+        var billId = billData!.BillId;
+
+        var addPartRes = await client.PostAsJsonAsync($"/bills/{billId}/participants", new { phoneNumber = _participantPhone.Value });
+        var partData = await addPartRes.Content.ReadFromJsonAsync<AddParticipantHttpResponse>();
+
+        await client.PostAsJsonAsync($"/bills/{billId}/items", new
+        {
+            description = "Existing Item",
+            quantity = 1,
+            amount = 100m,
+            sharerParticipantIds = new[] { partData!.ParticipantId }
+        });
+
+        await client.PostAsync($"/bills/{billId}/finalize", null);
+
+        // Upload receipt to finalized bill
+        using var content = CreateValidImageContent();
+
+        var uploadRes = await client.PostAsync($"/bills/{billId}/receipt", content);
+        Assert.Equal(HttpStatusCode.Conflict, uploadRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task ReceiptToSettlement_FullLifecycle_MaintainsExactBillingConsistency()
+    {
+        var client = CreateAuthenticatedClient(_splitterPhone);
+
+        // 1. Create bill
+        var createRes = await client.PostAsJsonAsync("/bills", new { title = "Dinner Party" });
+        var billData = await createRes.Content.ReadFromJsonAsync<CreateBillHttpResponse>();
+        var billId = billData!.BillId;
+
+        // 2. Add participant
+        var addPartRes = await client.PostAsJsonAsync($"/bills/{billId}/participants", new { phoneNumber = _participantPhone.Value });
+        var partData = await addPartRes.Content.ReadFromJsonAsync<AddParticipantHttpResponse>();
+
+        var repo = _factory.Services.GetRequiredService<IBillRepository>() as InMemoryBillRepository;
+        var bill = await repo!.GetByIdAsync(new BillId(Guid.Parse(billId)));
+        var splitterPartId = bill!.Participants.First(p => p.PhoneNumber == _splitterPhone).Id.Value.ToString();
+
+        // 3. Upload receipt
+        using var content = CreateValidImageContent();
+
+        var uploadRes = await client.PostAsync($"/bills/{billId}/receipt", content);
+        var uploadData = await uploadRes.Content.ReadFromJsonAsync<UploadReceiptHttpResponse>();
+
+        // 4. Update OCR draft with corrected values (Starter + Main Course)
+        var updateReq = new UpdateReceiptDraftHttpRequest(
+            MerchantName: "Bistro 101",
+            ReceiptDate: "2026-08-26",
+            Currency: "INR",
+            Subtotal: 600m,
+            Tax: 0m,
+            Discount: 0m,
+            Total: 600m,
+            LineItems: new List<OcrLineItemHttpRequest>
+            {
+                new OcrLineItemHttpRequest("Starter", 1m, 200m, 200m, 0.95m),
+                new OcrLineItemHttpRequest("Main Course", 1m, 400m, 400m, 0.95m)
+            }
+        );
+        await client.PutAsJsonAsync($"/bills/{billId}/receipt/{uploadData!.ReceiptId}", updateReq);
+
+        // 5. Confirm receipt
+        var confirmRes = await client.PostAsync($"/bills/{billId}/receipt/{uploadData.ReceiptId}/confirm", null);
+        Assert.Equal(HttpStatusCode.OK, confirmRes.StatusCode);
+        var confirmData = await confirmRes.Content.ReadFromJsonAsync<ConfirmReceiptHttpResponse>();
+        Assert.Equal(2, confirmData!.CreatedItemIds.Count);
+
+        var starterItemId = confirmData.CreatedItemIds[0];
+        var mainItemId = confirmData.CreatedItemIds[1];
+
+        // 6. Assign sharers: Starter shared by both (200/2=100), Main shared only by participant (400)
+        await client.PutAsJsonAsync($"/bills/{billId}/items/{starterItemId}/sharers", new { participantIds = new[] { splitterPartId, partData!.ParticipantId } });
+        await client.PutAsJsonAsync($"/bills/{billId}/items/{mainItemId}/sharers", new { participantIds = new[] { partData!.ParticipantId } });
+
+        // 7. Finalize bill
+        var finalizeRes = await client.PostAsync($"/bills/{billId}/finalize", null);
+        Assert.Equal(HttpStatusCode.OK, finalizeRes.StatusCode);
+
+        // 8. Verify Settlement calculation matches exact money conservation
+        var settlementRes = await client.GetAsync($"/bills/{billId}/settlement");
+        Assert.Equal(HttpStatusCode.OK, settlementRes.StatusCode);
+        var settlement = await settlementRes.Content.ReadFromJsonAsync<BillSettlementHttpResponse>();
+
+        Assert.NotNull(settlement);
+        Assert.Equal(600m, settlement.BillTotalAmount);
+        Assert.Equal(600m, settlement.TotalOwed);
+        Assert.Equal(600m, settlement.TotalRemaining);
+
+        var splitterSettlement = settlement.Participants.Single(p => p.ParticipantId == splitterPartId);
+        var otherSettlement = settlement.Participants.Single(p => p.ParticipantId == partData.ParticipantId);
+
+        Assert.Equal(100m, splitterSettlement.AmountOwed);
+        Assert.Equal(500m, otherSettlement.AmountOwed);
+        Assert.Equal(600m, splitterSettlement.AmountOwed + otherSettlement.AmountOwed);
+    }
 }
 

@@ -62,6 +62,7 @@ Architecture enforced by NetArchTest in `Owezy.ArchitectureTests`.
 - **MVP Operational Readiness & Deployment Foundation** — COMPLETE
 - **Final MVP Architecture & Readiness Audit** — COMPLETE
 - **Bill & Participant Summary Views** — COMPLETE
+- **Receipt/OCR → Billing Accuracy Hardening** — COMPLETE
 
 ## Not Yet Implemented
 
