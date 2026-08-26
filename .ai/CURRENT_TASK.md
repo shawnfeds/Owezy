@@ -6,8 +6,8 @@ NOT STARTED
 
 ## Waiting For
 
-Next explicit instruction or frontend work.
+Next explicit instruction.
 
 ## Completed
 
-All backend MVP milestones through MVP Scope & Technical Debt Cleanup are complete.
+All backend MVP milestones through Comprehensive Security Assessment are complete.
