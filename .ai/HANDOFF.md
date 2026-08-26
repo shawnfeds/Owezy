@@ -1,40 +1,38 @@
-# Handoff — Receipt/OCR Billing Accuracy Hardening Complete
+# Handoff — End-to-End MVP User Journey Verification Complete
 
 ## State
 
-Receipt/OCR Billing Accuracy Hardening milestone is complete. Working tree clean.
+End-to-End MVP User Journey Verification milestone is complete. Working tree clean.
 
-## Hardening Fixes Made
+## Journey Verified (14 Steps)
 
-- **Finalized Bill Upload Guard**:
-  - `ReceiptService.UploadReceiptAsync`: Added check `if (bill.IsFinalized)` throwing `InvalidOperationException` to block receipt uploads on finalized bills.
-  - `ReceiptEndpoints.HandleUploadReceiptAsync`: Catches `InvalidOperationException` for finalized bills and returns `409 Conflict`.
+1. Authenticate Splitter (OTP request -> verify -> JWT token)
+2. Create Bill (`POST /bills`)
+3. Add Participant (`POST /bills/{billId}/participants`)
+4. Add Bill Items (`POST /bills/{billId}/items`)
+5. Upload Receipt (`POST /bills/{billId}/receipt`)
+6. OCR Review/Correction (`GET` and `PUT /bills/{billId}/receipt/{receiptId}`)
+7. Confirm Receipt (`POST /bills/{billId}/receipt/{receiptId}/confirm`)
+8. Assign Item Sharers (`PUT /bills/{billId}/items/{itemId}/sharers`)
+9. Finalize Bill (`POST /bills/{billId}/finalize`)
+10. Generate Participant Access Link (`POST /bills/{billId}/participants/{participantId}/access-link`)
+11. Participant Scoped View (`GET /participant-access/{token}` and `/participant-access/{token}/summary`)
+12. Participant Mark Paid (`POST /participant-access/{token}/payment`)
+13. Splitter Payment Status (`GET /bills/{billId}/payments` and `GET /bills/{billId}`)
+14. Settlement Money Conservation (`GET /bills/{billId}/settlement`)
 
-- **Fractional Quantity Floor Guard**:
-  - `ReceiptService.ConfirmReceiptAsync`: Ensures items with fractional quantities `< 1` default to integer quantity `1` (`item.Quantity.Value >= 1m ? (int)Math.Floor(...) : 1`), preventing `ArgumentOutOfRangeException` during `BillItem.Create`.
+## Test Suite Added
 
-- **Tests Added**:
-  - `ReceiptServiceTests.cs`: `UploadReceipt_FinalizedBill_ThrowsInvalidOperationException` and `ConfirmReceipt_FractionalQuantity_DefaultsToQuantityAtLeastOne`.
-  - `ReceiptApiTests.cs`: `UploadReceipt_FinalizedBill_Returns409Conflict` and `ReceiptToSettlement_FullLifecycle_MaintainsExactBillingConsistency`.
-
-## Audit Checklist (All PASS)
-
-- OCR normalization rules (line total vs unit price x qty): PASS
-- Receipt confirmation immutability and duplicate prevention: PASS
-- BillItem mapping accuracy: PASS
-- Money amount exactness: PASS
-- Finalized bill protection (upload, review, confirm): PASS
-- Security (file path traversal prevention, secret isolation): PASS
-- End-to-end settlement consistency: PASS
+- `E2EMvpUserJourneyTests.cs`: Full 14-step integration test validating the entire user journey end-to-end against ASP.NET Core web host and persistence abstractions.
 
 ## Test Results
 
 | Suite | Pass | Total |
 |---|---|---|
 | Unit | 184 | 184 |
-| Integration/API | 99 | 99 |
+| Integration/API | 100 | 100 |
 | Architecture | 4 | 4 |
-| **Total** | **287** | **287** |
+| **Total** | **288** | **288** |
 
 ## Next
 

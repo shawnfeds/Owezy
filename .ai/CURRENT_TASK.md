@@ -10,4 +10,4 @@ Next explicit milestone prompt.
 
 ## Completed
 
-All milestones through Receipt/OCR Billing Accuracy Hardening are complete.
+All milestones through End-to-End MVP User Journey Verification are complete.
