@@ -201,13 +201,8 @@ public static class BillEndpoints
             return Results.BadRequest(new ApiError("invalid_amount", "Amount must be greater than zero."));
         }
 
-        if (httpRequest.SharerParticipantIds is null || httpRequest.SharerParticipantIds.Count == 0)
-        {
-            return Results.BadRequest(new ApiError("missing_sharers", "At least one sharer participant ID is required."));
-        }
-
         var sharerGuids = new List<ParticipantId>();
-        foreach (var idStr in httpRequest.SharerParticipantIds)
+        foreach (var idStr in httpRequest.SharerParticipantIds ?? [])
         {
             if (!Guid.TryParse(idStr, out var sharerGuid))
             {
