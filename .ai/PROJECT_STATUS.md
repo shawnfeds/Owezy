@@ -11,6 +11,8 @@ Modular monolith. Single solution: `Owezy.slnx`.
 Dependency direction:
 ```
 Domain ← Application ← Infrastructure ← API
+                                          ↑
+                                     Owezy.Client
 ```
 
 Architecture enforced by NetArchTest in `Owezy.ArchitectureTests`.
@@ -20,6 +22,7 @@ Architecture enforced by NetArchTest in `Owezy.ArchitectureTests`.
 - .NET 10 / C# / ASP.NET Core
 - Entity Framework Core + SQL Server
 - Tesseract OCR (local)
+- Owezy.Client: Mobile-first Vanilla JS / HTML5 / CSS3 SPA served directly by `Owezy.Api`
 
 ## Endpoints
 
@@ -66,6 +69,7 @@ Architecture enforced by NetArchTest in `Owezy.ArchitectureTests`.
 - **End-to-End MVP User Journey Verification** — COMPLETE
 - **MVP Scope & Technical Debt Cleanup** — COMPLETE
 - **Comprehensive Security Assessment** — COMPLETE
+- **Frontend & Mobile UX** — COMPLETE
 
 ## Not Yet Implemented
 

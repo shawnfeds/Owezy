@@ -1,30 +1,36 @@
-# Handoff — Comprehensive Security Assessment Complete
+# Handoff — Frontend & Mobile UX Complete
 
 ## State
 
-Comprehensive Security Assessment milestone is complete. Working tree clean.
+Frontend & Mobile UX milestone is complete. Working tree clean.
 
-## Security Audit Summary (All PASS)
+## Features Implemented
 
-1. **Authentication**: OTP max attempts (5) enforced, CryptographicOperations.FixedTimeEquals used for timing safety, HMAC-SHA256 salted hashes, 256-bit JWT signing keys validated at startup.
-2. **Authorization / IDOR**: IDOR and cross-bill/cross-splitter access blocked on all routes (403 Forbidden).
-3. **Participant Access Tokens**: 256-bit entropy raw tokens never stored; SHA-256 hashed token lookup; participant scoping returns ONLY shared items.
-4. **Billing Invariants**: Money conservation exact, finalized bills immutable (409 Conflict), domain constraints strictly enforced.
-5. **Receipt / File Security**: Path traversal prevented via GUID storage keys and `Path.GetFullPath` validation; file upload max size (10 MB), magic bytes validation.
-6. **Injection & Info Disclosure**: EF Core parameterized queries, standardized `ApiError` responses, stack traces/secrets isolated.
+- **Owezy.Client Frontend (Mobile-First SPA)**:
+  - `styles/main.css`: Mobile-first responsive dark design system (Inter font, 48px touch targets, indigo brand accents, badge statuses, loading spinners, modal popups).
+  - `js/api.js`: Clean API client layer with JWT session storage and unified error handling (401, 403, 404, 409, 500).
+  - `js/views/auth.js`: OTP request and verification view.
+  - `js/views/dashboard.js`: Create bill form and active/recent bill list.
+  - `js/views/workspace.js`: Splitter bill workspace with tabbed navigation:
+    - **Items & Members**: Add participants, add manual items, item list.
+    - **📷 OCR Receipt**: Primary "📷 Take Photo" button (`capture="environment"`) and secondary "📁 Choose from Gallery" button (`accept="image/*"`). Displays upload progress, OCR draft review, item editing, and receipt confirmation.
+    - **👥 Sharers**: Select item and toggle participant checkboxes (`PUT /bills/{billId}/items/{itemId}/sharers`).
+    - **💰 Settlement**: TotalOwed, TotalPaid, TotalRemaining, Finalize Bill button, and Participant Access link generator (copyable URL `#access/{token}`).
+  - `js/views/participant.js`: Anonymous participant portal (`#/access/{token}`) displaying scoped share, items shared, and "Mark My Share as Paid" button (`POST /participant-access/{token}/payment`).
+  - `js/app.js`: Hash router (`#/`, `#/auth`, `#/bills/:id`, `#/access/:token`).
 
-## Security Test Suite Added
-
-- `SecurityAssessmentTests.cs`: Verified malformed JWT (401), cross-splitter IDOR (403), cross-splitter finalization (403), tampered participant access token (404), error sanitization (no stack trace / secrets leakage).
+- **Backend Integration**:
+  - `Program.cs`: Configured `UseDefaultFiles` and `UseStaticFiles` to serve `Owezy.Client` statically.
+  - `FrontendIntegrationTests.cs`: Added 3 integration tests verifying static asset delivery (`/`, `/styles/main.css`, `/js/app.js`).
 
 ## Test Results
 
 | Suite | Pass | Total |
 |---|---|---|
 | Unit | 183 | 183 |
-| Integration/API | 104 | 104 |
+| Integration/API | 107 | 107 |
 | Architecture | 3 | 3 |
-| **Total** | **290** | **290** |
+| **Total** | **293** | **293** |
 
 ## Next
 
