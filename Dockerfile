@@ -15,6 +15,7 @@ RUN dotnet restore src/Owezy.Api/Owezy.Api.csproj
 # Copy remaining source code and publish
 COPY src/ src/
 RUN dotnet publish src/Owezy.Api/Owezy.Api.csproj -c Release -o /app/publish --no-restore
+RUN cp -r src/Owezy.Client /app/publish/Owezy.Client
 
 # Final runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
@@ -28,6 +29,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/publish .
+
+# Persistent storage location for receipt images
+ENV RECEIPT_STORAGE_ROOT=/app/receipts
+RUN mkdir -p /app/receipts
 
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080

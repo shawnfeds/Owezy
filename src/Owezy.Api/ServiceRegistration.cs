@@ -27,7 +27,13 @@ public static class ServiceRegistration
         services.AddScoped<IOtpChallengeRepository, SqlOtpChallengeRepository>();
         services.AddScoped<IBillRepository, SqlBillRepository>();
         services.AddScoped<IReceiptRepository, SqlReceiptRepository>();
-        services.AddSingleton<IReceiptStorage, LocalFileReceiptStorage>();
+        services.AddSingleton<IReceiptStorage>(sp =>
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+            var rootPath = config["ReceiptStorage:RootPath"]
+                ?? config["RECEIPT_STORAGE_ROOT"];
+            return new LocalFileReceiptStorage(rootPath);
+        });
         services.AddSingleton<IOcrService, TesseractOcrService>();
 
         return services;

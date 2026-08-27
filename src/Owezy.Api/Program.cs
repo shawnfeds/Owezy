@@ -27,6 +27,15 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 var clientPath = Path.Combine(builder.Environment.ContentRootPath, "..", "Owezy.Client");
+if (!Directory.Exists(clientPath))
+{
+    clientPath = Path.Combine(builder.Environment.ContentRootPath, "Owezy.Client");
+}
+if (!Directory.Exists(clientPath))
+{
+    clientPath = Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+}
+
 if (Directory.Exists(clientPath))
 {
     var fileProvider = new PhysicalFileProvider(Path.GetFullPath(clientPath));
