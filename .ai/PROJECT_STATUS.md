@@ -23,6 +23,7 @@ Architecture enforced by NetArchTest in `Owezy.ArchitectureTests`.
 - Entity Framework Core + SQL Server
 - Tesseract OCR (local)
 - Owezy.Client: Mobile-first Vanilla JS / HTML5 / CSS3 SPA served directly by `Owezy.Api`
+- JSON: `JavaScriptEncoder.Default` (HTML-safe) for XSS defense-in-depth
 
 ## Endpoints
 
@@ -32,7 +33,7 @@ Architecture enforced by NetArchTest in `Owezy.ArchitectureTests`.
 - `POST /bills` → `201 Created` (JWT auth)
 - `GET  /bills/{billId}` → `200 OK` (JWT auth, splitter — full bill summary)
 - `POST /bills/{billId}/participants` → `200 OK` (JWT auth, splitter)
-- `POST /bills/{billId}/items` → `201 Created` (JWT auth, splitter)
+- `POST /bills/{billId}/items` → `201 Created` (JWT auth, splitter — sharers optional at create, enforced at finalize)
 - `PUT  /bills/{billId}/items/{itemId}/sharers` → `200 OK` (JWT auth, splitter)
 - `POST /bills/{billId}/finalize` → `200 OK` (JWT auth, splitter)
 - `POST /bills/{billId}/participants/{participantId}/access-link` → `200 OK` (JWT auth, splitter)
@@ -43,7 +44,7 @@ Architecture enforced by NetArchTest in `Owezy.ArchitectureTests`.
 - `PUT  /bills/{billId}/receipt/{receiptId}` → `200 OK` (JWT auth, splitter)
 - `POST /bills/{billId}/receipt/{receiptId}/confirm` → `200 OK` (JWT auth, splitter)
 - `GET  /participant-access/{token}` → `200 OK` (AllowAnonymous)
-- `GET  /participant-access/{token}/summary` → `200 OK` (AllowAnonymous — participant scoped view)
+- `GET  /participant-access/{token}/summary` → `200 OK` (AllowAnonymous)
 - `POST /participant-access/{token}/payment` → `200 OK` (AllowAnonymous)
 
 ## Persistence
@@ -68,8 +69,11 @@ Architecture enforced by NetArchTest in `Owezy.ArchitectureTests`.
 - **Receipt/OCR → Billing Accuracy Hardening** — COMPLETE
 - **End-to-End MVP User Journey Verification** — COMPLETE
 - **MVP Scope & Technical Debt Cleanup** — COMPLETE
-- **Comprehensive Security Assessment** — COMPLETE
+- **Comprehensive Security Assessment (Backend)** — COMPLETE
+- **Final MVP Sign-Off & Handoff** — COMPLETE
 - **Frontend & Mobile UX** — COMPLETE
+- **Full Application Functional & Regression Testing** — COMPLETE
+- **Full-System Security & Vulnerability Assessment** — COMPLETE
 
 ## Not Yet Implemented
 

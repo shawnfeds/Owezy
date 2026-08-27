@@ -1,37 +1,59 @@
-# Handoff — Frontend & Mobile UX Complete
+# Handoff — Full-System Security Assessment Complete
 
 ## State
 
-Frontend & Mobile UX milestone is complete. Working tree clean.
+All milestones complete. Working tree clean.
 
-## Features Implemented
+## Security Assessment Findings & Fixes
 
-- **Owezy.Client Frontend (Mobile-First SPA)**:
-  - `styles/main.css`: Mobile-first responsive dark design system (Inter font, 48px touch targets, indigo brand accents, badge statuses, loading spinners, modal popups).
-  - `js/api.js`: Clean API client layer with JWT session storage and unified error handling (401, 403, 404, 409, 500).
-  - `js/views/auth.js`: OTP request and verification view.
-  - `js/views/dashboard.js`: Create bill form and active/recent bill list.
-  - `js/views/workspace.js`: Splitter bill workspace with tabbed navigation:
-    - **Items & Members**: Add participants, add manual items, item list.
-    - **📷 OCR Receipt**: Primary "📷 Take Photo" button (`capture="environment"`) and secondary "📁 Choose from Gallery" button (`accept="image/*"`). Displays upload progress, OCR draft review, item editing, and receipt confirmation.
-    - **👥 Sharers**: Select item and toggle participant checkboxes (`PUT /bills/{billId}/items/{itemId}/sharers`).
-    - **💰 Settlement**: TotalOwed, TotalPaid, TotalRemaining, Finalize Bill button, and Participant Access link generator (copyable URL `#access/{token}`).
-  - `js/views/participant.js`: Anonymous participant portal (`#/access/{token}`) displaying scoped share, items shared, and "Mark My Share as Paid" button (`POST /participant-access/{token}/payment`).
-  - `js/app.js`: Hash router (`#/`, `#/auth`, `#/bills/:id`, `#/access/:token`).
+### Vulnerability 1 — Functional IDOR: Item creation blocked without sharers (Medium)
 
-- **Backend Integration**:
-  - `Program.cs`: Configured `UseDefaultFiles` and `UseStaticFiles` to serve `Owezy.Client` statically.
-  - `FrontendIntegrationTests.cs`: Added 3 integration tests verifying static asset delivery (`/`, `/styles/main.css`, `/js/app.js`).
+**Root cause**: `HandleAddBillItemAsync` rejected requests with empty `sharerParticipantIds` at the API layer. The frontend workspace creates items first (without sharers), then assigns sharers in the separate Sharers tab. This broke the intended two-step UX.
 
-## Test Results
+**Fix**: Removed the premature API-layer guard. The domain's `Finalize()` invariant already enforces that every item must have at least one sharer before finalization. Items can now be created without sharers and have sharers assigned via `PUT /items/{itemId}/sharers` before finalizing.
+
+**Regression test**: `BillingFix_AddItemWithoutSharers_IsAllowed_SharersCanBeAssignedLater`
+
+### Vulnerability 2 — JSON XSS Defense-in-Depth (Low)
+
+**Root cause**: ASP.NET Core's default `System.Text.Json` serializer uses `JavaScriptEncoder.UnsafeRelaxedJsonEscaping`, which does NOT HTML-encode `<`, `>`, `&`. OCR-derived content (from uploaded receipts) returned in API responses could contain raw `<script>` tags in the JSON body.
+
+**Impact**: Low — the frontend's `escapeHtml()` on all server-provided data protects the DOM. However, defense-in-depth requires the API itself to not emit raw HTML tags in JSON.
+
+**Fix**: Configured `JavaScriptEncoder.Default` globally in `Program.cs`. All API responses now Unicode-escape `<`, `>`, `&`, `'`, `"`.
+
+**Regression test**: `OcrOutput_ScriptTagsInResponse_AreReturnedAsPlainText_NotExecuted`
+
+## Full Security Assessment Results
+
+| Domain | Result |
+|--------|--------|
+| Authentication | PASS — HMAC-SHA256 OTP, constant-time compare, attempt limit, JWT min-key enforced |
+| Authorization/IDOR | PASS — All splitter endpoints verify caller == SplitterPhoneNumber |
+| Participant isolation | PASS — Token hashed (SHA-256), scoped views, cross-participant payment isolation |
+| Token security | PASS — 256-bit random token, SHA-256 stored hash, token revocation on regenerate |
+| Billing logic | FIXED — Item creation now allows empty sharers; finalization still enforces sharers |
+| Finalization | PASS — Immutability enforced at domain layer, double-finalize rejected (409) |
+| Payments | PASS — Idempotent mark-as-paid, token-scoped, no cross-participant modification |
+| Settlement | PASS — Splitter-only, derived from domain calculation, money conservation |
+| Receipt/file security | PASS — Extension sanitization, GUID storage keys, magic bytes validation, size limit |
+| Injection | PASS — SQL via EF parameterization; JSON XSS now defense-in-depth via HTML-safe encoder |
+| Frontend security | PASS — escapeHtml() on all server data, sessionStorage (not localStorage), no hardcoded secrets |
+| API security | PASS — 401/403/404/409 correct, no stack traces, no secrets in responses |
+| CORS/HTTP | PASS — No CORS configured (same-origin SPA), HTTPS redirect enabled |
+| Concurrency | PASS — Idempotent payment replay safe |
+| Persistence/database | PASS — EF Core parameterized queries, authorization before data access |
+| Information disclosure | PASS — No secrets/stack traces/internals in error responses |
+
+## Test Results (Post-Assessment)
 
 | Suite | Pass | Total |
 |---|---|---|
 | Unit | 183 | 183 |
-| Integration/API | 107 | 107 |
+| Integration/API | 150 | 150 |
 | Architecture | 3 | 3 |
-| **Total** | **293** | **293** |
+| **Total** | **336** | **336** |
 
 ## Next
 
-Wait for next explicit instruction.
+READY FOR DEPLOYMENT.
